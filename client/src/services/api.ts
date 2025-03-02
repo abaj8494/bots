@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use environment variable if available, otherwise default to production URL
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud';
 
 // Set up axios instance
 const api = axios.create({

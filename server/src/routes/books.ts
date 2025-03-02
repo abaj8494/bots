@@ -7,7 +7,7 @@ const router: Router = express.Router();
 // @route   GET api/books
 // @desc    Get all books
 // @access  Public
-router.get('/', (async (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     console.log('Fetching all books...');
     const books = await getAllBooks();
@@ -17,17 +17,18 @@ router.get('/', (async (req: Request, res: Response) => {
     console.error('Error fetching books:', err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   GET api/books/:id
 // @desc    Get book by ID
 // @access  Public
-router.get('/:id', (async (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
     const book = await getBookById(parseInt(req.params.id));
     
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     res.json(book);
@@ -35,12 +36,12 @@ router.get('/:id', (async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   POST api/books
 // @desc    Create a new book (admin only in a real app)
 // @access  Private
-router.post('/', auth, (async (req: Request, res: Response) => {
+router.post('/', auth, async (req: Request, res: Response) => {
   try {
     const { title, author, description, content, cover_image } = req.body;
     
@@ -57,7 +58,7 @@ router.post('/', auth, (async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   PUT api/books/:id
 // @desc    Update a book (admin only in a real app)
@@ -70,7 +71,8 @@ router.put('/:id', auth, async (req: Request, res: Response) => {
     // Check if book exists
     const book = await getBookById(bookId);
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     const updatedBook = await updateBook(bookId, {
@@ -99,7 +101,8 @@ router.put('/:id/cover', async (req: Request, res: Response) => {
     // Check if book exists
     const book = await getBookById(bookId);
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     const updatedBook = await updateBook(bookId, {
@@ -123,7 +126,8 @@ router.delete('/:id', auth, async (req: Request, res: Response) => {
     // Check if book exists
     const book = await getBookById(bookId);
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     await deleteBook(bookId);

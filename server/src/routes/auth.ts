@@ -23,14 +23,15 @@ const router: Router = express.Router();
 // @route   POST api/auth/register
 // @desc    Register a user
 // @access  Public
-router.post('/register', (async (req: Request, res: Response) => {
+router.post('/register', async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
     
     // Check if user already exists
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ msg: 'User already exists' });
+      res.status(400).json({ msg: 'User already exists' });
+      return;
     }
     
     // Create new user with verified status set to false
@@ -62,12 +63,12 @@ router.post('/register', (async (req: Request, res: Response) => {
     console.error('Registration error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   GET api/auth/verify/:userId/:token
 // @desc    Verify user's email
 // @access  Public
-router.get('/verify/:userId/:token', (async (req: Request, res: Response) => {
+router.get('/verify/:userId/:token', async (req: Request, res: Response) => {
   try {
     const { userId, token } = req.params;
     
@@ -75,12 +76,14 @@ router.get('/verify/:userId/:token', (async (req: Request, res: Response) => {
     const verificationRecord = await getVerificationToken(parseInt(userId), token);
     
     if (!verificationRecord) {
-      return res.status(400).json({ msg: 'Invalid or expired verification link' });
+      res.status(400).json({ msg: 'Invalid or expired verification link' });
+      return;
     }
     
     // Check if token has expired
     if (new Date() > new Date(verificationRecord.expires_at)) {
-      return res.status(400).json({ msg: 'Verification link has expired' });
+      res.status(400).json({ msg: 'Verification link has expired' });
+      return;
     }
     
     // Update user's verification status
@@ -110,30 +113,33 @@ router.get('/verify/:userId/:token', (async (req: Request, res: Response) => {
     console.error('Email verification error:', err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', (async (req: Request, res: Response) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
     // Check if user exists
     const user = await getUserByEmail(email);
     if (!user) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      res.status(400).json({ msg: 'Invalid credentials' });
+      return;
     }
     
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      res.status(400).json({ msg: 'Invalid credentials' });
+      return;
     }
     
     // Check if user is verified
     if (!user.is_verified) {
-      return res.status(401).json({ msg: 'Please verify your email before logging in' });
+      res.status(401).json({ msg: 'Please verify your email before logging in' });
+      return;
     }
     
     // Create JWT payload
@@ -157,22 +163,23 @@ router.post('/login', (async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   GET api/auth/me
 // @desc    Get current user
 // @access  Private
-router.get('/me', auth, ((req: Request, res: Response) => {
+router.get('/me', auth, (req: Request, res: Response) => {
   try {
     if (!req.user) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     res.json(req.user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // Google OAuth routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
@@ -180,10 +187,12 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get(
   '/google/callback',
   passport.authenticate('google', { session: false }),
-  ((req: Request, res: Response) => {
+  (req: Request, res: Response) => {
     // Create JWT token
     if (!req.user) {
-      return res.status(401).json({ msg: 'Authentication failed' });
+      console.error('Google auth failed: No user data received');
+      res.status(401).json({ msg: 'Authentication failed' });
+      return;
     }
     
     const payload = {
@@ -192,16 +201,25 @@ router.get(
       email: req.user.email
     };
     
+    console.log('Google auth successful, user:', req.user.email);
+    
     jwt.sign(
       payload,
       process.env.JWT_SECRET as string,
       { expiresIn: '7d' },
       (err, token) => {
-        if (err) throw err;
-        res.redirect(`${process.env.CLIENT_URL}?token=${token}`);
+        if (err) {
+          console.error('JWT signing error:', err);
+          res.status(500).send('Error during authentication');
+          return;
+        }
+        
+        const redirectUrl = `${process.env.CLIENT_URL}?token=${token}`;
+        console.log('Redirecting to:', redirectUrl);
+        res.redirect(redirectUrl);
       }
     );
-  }) as RequestHandler
+  }
 );
 
 // GitHub OAuth routes
@@ -210,10 +228,12 @@ router.get('/github', passport.authenticate('github', { scope: ['user:email'] })
 router.get(
   '/github/callback',
   passport.authenticate('github', { session: false }),
-  ((req: Request, res: Response) => {
+  (req: Request, res: Response) => {
     // Create JWT token
     if (!req.user) {
-      return res.status(401).json({ msg: 'Authentication failed' });
+      console.error('GitHub auth failed: No user data received');
+      res.status(401).json({ msg: 'Authentication failed' });
+      return;
     }
     
     const payload = {
@@ -222,27 +242,37 @@ router.get(
       email: req.user.email
     };
     
+    console.log('GitHub auth successful, user:', req.user.email);
+    
     jwt.sign(
       payload,
       process.env.JWT_SECRET as string,
       { expiresIn: '7d' },
       (err, token) => {
-        if (err) throw err;
-        res.redirect(`${process.env.CLIENT_URL}?token=${token}`);
+        if (err) {
+          console.error('JWT signing error:', err);
+          res.status(500).send('Error during authentication');
+          return;
+        }
+        
+        const redirectUrl = `${process.env.CLIENT_URL}?token=${token}`;
+        console.log('Redirecting to:', redirectUrl);
+        res.redirect(redirectUrl);
       }
     );
-  }) as RequestHandler
+  }
 );
 
 // @route   POST api/auth/apikey
 // @desc    Save or update user's OpenAI API key
 // @access  Private
-router.post('/apikey', auth, (async (req: Request, res: Response) => {
+router.post('/apikey', auth, async (req: Request, res: Response) => {
   try {
     const { apiKey } = req.body;
     
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     
     const userId = req.user.id;
@@ -268,17 +298,18 @@ router.post('/apikey', auth, (async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 // @route   GET api/auth/apikey
 // @desc    Check if user has an API key
 // @access  Private
-router.get('/apikey', auth, (async (req: Request, res: Response) => {
+router.get('/apikey', auth, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     
     if (!userId) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     
     const apiKey = await getApiKeyByUserId(userId);
@@ -292,6 +323,6 @@ router.get('/apikey', auth, (async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-}) as RequestHandler);
+});
 
 export default router; 

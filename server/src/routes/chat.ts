@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { Request, Response } from 'express';
+import { Request, Response, RequestHandler } from 'express';
 import { auth, UserPayload } from '../middleware/auth';
 import { getBookById } from '../models/Book';
 import { saveChatMessage, getChatHistoryByUserAndBook, deleteChatHistory } from '../models/Chat';
@@ -16,7 +16,8 @@ router.post('/:bookId', auth, async (req: Request, res: Response) => {
     const bookId = parseInt(req.params.bookId);
     
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     
     const userId = req.user.id;
@@ -24,7 +25,8 @@ router.post('/:bookId', auth, async (req: Request, res: Response) => {
     // Get book content
     const book = await getBookById(bookId);
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     // Get previous chat history for context
@@ -62,7 +64,8 @@ router.get('/:bookId', auth, async (req: Request, res: Response) => {
     const bookId = parseInt(req.params.bookId);
     
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     
     const userId = req.user.id;
@@ -70,7 +73,8 @@ router.get('/:bookId', auth, async (req: Request, res: Response) => {
     // Check if book exists
     const book = await getBookById(bookId);
     if (!book) {
-      return res.status(404).json({ msg: 'Book not found' });
+      res.status(404).json({ msg: 'Book not found' });
+      return;
     }
     
     // Get chat history
@@ -91,7 +95,8 @@ router.delete('/:bookId', auth, async (req: Request, res: Response) => {
     const bookId = parseInt(req.params.bookId);
     
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ msg: 'User not authenticated' });
+      res.status(401).json({ msg: 'User not authenticated' });
+      return;
     }
     
     const userId = req.user.id;
