@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use environment variable if available, otherwise default to production URL
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud';
+// Only use environment variables for API URL without fallbacks to hardcoded values
+const API_URL = process.env.REACT_APP_API_URL || '';
 
 // Set up axios instance
 const api = axios.create({
@@ -27,54 +27,76 @@ api.interceptors.request.use(
 
 // Authentication services
 export const login = async (email: string, password: string) => {
-  const response = await api.post('/auth/login', { email, password });
+  const response = await api.post('/api/auth/login', { email, password });
   return response.data;
 };
 
 export const register = async (username: string, email: string, password: string) => {
-  const response = await api.post('/auth/register', { username, email, password });
+  const response = await api.post('/api/auth/register', { username, email, password });
   return response.data;
 };
 
 export const getCurrentUser = async () => {
-  const response = await api.get('/auth/me');
+  const response = await api.get('/api/auth/me');
   return response.data;
 };
 
 export const checkApiKey = async () => {
-  const response = await api.get('/auth/apikey');
+  const response = await api.get('/api/auth/apikey');
   return response.data;
 };
 
 export const saveApiKey = async (apiKey: string) => {
-  const response = await api.post('/auth/apikey', { apiKey });
+  const response = await api.post('/api/auth/apikey', { apiKey });
   return response.data;
 };
 
 // Book services
 export const getBooks = async () => {
-  const response = await api.get('/books');
-  return response.data;
+  console.log('API Service: Making request to /api/books');
+  try {
+    const response = await api.get('/api/books');
+    console.log('API Service: Successfully received books response:', response);
+    return response.data;
+  } catch (error) {
+    console.error('API Service: Error fetching books:', error);
+    throw error;
+  }
 };
 
 export const getBook = async (id: number) => {
-  const response = await api.get(`/books/${id}`);
+  const response = await api.get(`/api/books/${id}`);
   return response.data;
 };
 
 // Chat services
 export const sendChatMessage = async (bookId: number, message: string, chatHistory: any[] = []) => {
-  const response = await api.post(`/chat/${bookId}`, { message, chatHistory });
-  return response.data;
+  console.log('Sending chat message to book ID:', bookId);
+  console.log('Current auth token:', localStorage.getItem('token')?.substring(0, 20) + '...');
+  
+  // Ensure the token is in the headers
+  const token = localStorage.getItem('token');
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }
+  
+  try {
+    const response = await api.post(`/api/chat/${bookId}`, { message, chatHistory });
+    console.log('Chat message response:', response);
+    return response.data;
+  } catch (error) {
+    console.error('Error in sendChatMessage:', error);
+    throw error;
+  }
 };
 
 export const getChatHistory = async (bookId: number) => {
-  const response = await api.get(`/chat/${bookId}`);
+  const response = await api.get(`/api/chat/${bookId}`);
   return response.data;
 };
 
 export const clearChatHistory = async (bookId: number) => {
-  const response = await api.delete(`/chat/${bookId}`);
+  const response = await api.delete(`/api/chat/${bookId}`);
   return response.data;
 };
 

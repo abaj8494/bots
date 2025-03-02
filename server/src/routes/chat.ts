@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { Request, Response, RequestHandler } from 'express';
-import { auth, UserPayload } from '../middleware/auth';
+import { auth } from '../middleware/auth';
 import { getBookById } from '../models/Book';
 import { saveChatMessage, getChatHistoryByUserAndBook, deleteChatHistory } from '../models/Chat';
 import { generateChatResponse, ChatHistoryMessage } from '../utils/openai';
@@ -12,7 +12,7 @@ const router: Router = express.Router();
 // @access  Private
 router.post('/:bookId', auth, async (req: Request, res: Response) => {
   try {
-    const { message } = req.body;
+    const { message, chatHistory: clientChatHistory } = req.body;
     const bookId = parseInt(req.params.bookId);
     
     if (!req.user || !req.user.id) {

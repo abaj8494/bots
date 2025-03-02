@@ -63,8 +63,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         try {
           // Verify token and get user data
-          const res = await axios.get('http://localhost:5002/api/auth/me');
-          setUser(res.data);
+          const userData = await getCurrentUser();
+          setUser(userData);
           setIsAuthenticated(true);
         } catch (err) {
           console.error('Error loading user:', err);

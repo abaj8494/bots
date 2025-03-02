@@ -85,15 +85,24 @@ export const generateChatResponse = async (
     
     const openai = await getOpenAIClient(userId);
     
-    // Use the entire book content instead of just a preview
+    // Limit book content size to avoid token limits
+    // Average is ~4 characters per token, so 100K chars ~= 25K tokens
+    // This leaves room for conversation history and other messages
+    const MAX_CONTENT_CHARS = 100000;
+    const trimmedBookContent = bookContent.length > MAX_CONTENT_CHARS 
+      ? bookContent.substring(0, MAX_CONTENT_CHARS) + "... [Content trimmed due to length. This is an extract from the beginning of the book.]" 
+      : bookContent;
+    
+    console.log(`Using ${trimmedBookContent.length} characters of book content (${bookContent.length > MAX_CONTENT_CHARS ? 'trimmed' : 'full text'})`);
+    
     // Build messages array with system message first
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: `You are an AI assistant that specializes in discussing and analyzing literature. 
-                 You have deep knowledge about the following book: 
+                 You have knowledge about the following book: 
                  
-                 ${bookContent}
+                 ${trimmedBookContent}
                  
                  RESPONSE STYLE GUIDELINES:
                  1. Be direct and concise in your responses.
@@ -101,6 +110,7 @@ export const generateChatResponse = async (
                  3. Include brief references to specific parts of the book (e.g., "Chapter 3", "Early in the story", "During the climax").
                  4. Use direct quotes from the book when relevant, formatted with quotation marks.
                  5. If asked about content not in this book, politely redirect the conversation back to this specific work.
+                 6. If asked about parts of the book that might be beyond the excerpt you have, acknowledge that limitation.
                  
                  Example format:
                  • Main point (reference to book section)
@@ -110,10 +120,10 @@ export const generateChatResponse = async (
       }
     ];
     
-    // Add chat history if provided (up to 10 previous exchanges)
+    // Add chat history if provided (limit to 5 previous exchanges to save tokens)
     if (chatHistory && chatHistory.length > 0) {
-      // Limit to last 10 exchanges instead of 5
-      const recentHistory = chatHistory.slice(-10);
+      // Limit to last 5 exchanges to save on token usage
+      const recentHistory = chatHistory.slice(-5);
       
       // Add each exchange as a user and assistant message
       recentHistory.forEach(exchange => {

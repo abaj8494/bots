@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { getBooks, sendChatMessage } from '../services/api';
 import './ChatInterface.css';
 
 interface Message {
@@ -28,16 +28,34 @@ const ChatInterface: React.FC = () => {
   // Fetch books on component mount
   useEffect(() => {
     const fetchBooks = async () => {
+      console.log('ChatInterface: Starting to fetch books...');
       try {
-        const response = await axios.get('http://localhost:5002/api/books');
-        setBooks(response.data);
-        if (response.data.length > 0) {
-          setSelectedBook(response.data[0]);
+        console.log('ChatInterface: Calling getBooks API...');
+        const books = await getBooks();
+        console.log('ChatInterface: Books received from API:', books);
+        
+        if (!books || books.length === 0) {
+          console.warn('ChatInterface: No books received from the API');
+          setMessages([
+            {
+              id: Date.now(),
+              text: "No books are available. Please contact the administrator.",
+              isUser: false,
+              timestamp: new Date()
+            }
+          ]);
+          return;
+        }
+        
+        setBooks(books);
+        if (books.length > 0) {
+          console.log('ChatInterface: Setting first book as selected book:', books[0]);
+          setSelectedBook(books[0]);
           // Add welcome message
           setMessages([
             {
               id: 1,
-              text: `Welcome! You're now chatting with "${response.data[0].title}" by ${response.data[0].author}. Ask me anything about this book!`,
+              text: `Welcome! You're now chatting with "${books[0].title}" by ${books[0].author}. Ask me anything about this book!`,
               isUser: false,
               timestamp: new Date()
             }
@@ -45,6 +63,14 @@ const ChatInterface: React.FC = () => {
         }
       } catch (error) {
         console.error('Error fetching books:', error);
+        setMessages([
+          {
+            id: Date.now(),
+            text: "Failed to load books. Please try refreshing the page or contact support.",
+            isUser: false,
+            timestamp: new Date()
+          }
+        ]);
       }
     };
 
@@ -108,22 +134,15 @@ const ChatInterface: React.FC = () => {
       
       console.log(`Sending chat request with ${chatHistory.length} previous exchanges`);
       
-      // For demo purposes, we'll directly call the API without authentication
-      const response = await axios.post(
-        `http://localhost:5002/api/demo-chat`,
-        { 
-          message: inputMessage,
-          bookId: selectedBook.id,
-          chatHistory: chatHistory
-        }
-      );
+      // Use the API service to send chat message
+      const response = await sendChatMessage(selectedBook.id, inputMessage, chatHistory);
       
       // Add response to messages
       setMessages(prev => [
         ...prev,
         {
           id: Date.now() + 1,
-          text: response.data.response || "I couldn't generate a response. Please try again.",
+          text: response.response || "I couldn't generate a response. Please try again.",
           isUser: false,
           timestamp: new Date()
         }
