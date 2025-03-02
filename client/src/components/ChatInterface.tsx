@@ -80,6 +80,62 @@ const ChatInterface: React.FC = () => {
                 timestamp: new Date()
               }
             ]);
+            
+            // Check if we need to process embeddings by making a test message request
+            console.log('Checking if embeddings need to be processed...');
+            setIsProcessingChunks(true);
+            setChunkProgress({ processed: 0, total: 1 }); // Start with indefinite progress
+            
+            // Send an initial message to trigger embedding process if needed
+            sendChatMessage(bookIdNum, "Are you ready to discuss this book?", [])
+              .then(response => {
+                // Don't add the test message to the chat history
+                if (response.response && response.response.includes("processing this book for the first time")) {
+                  console.log('Book needs initial processing');
+                  // The book is being processed for the first time
+                  // Start tracking progress
+                  if (progressCleanupRef.current) {
+                    progressCleanupRef.current(); // Clean up any existing connection
+                  }
+                  
+                  progressCleanupRef.current = trackEmbeddingProgress(
+                    bookIdNum,
+                    (processedChunks, totalChunks) => {
+                      console.log(`Processing chunks: ${processedChunks}/${totalChunks}`);
+                      setChunkProgress({ 
+                        processed: processedChunks, 
+                        total: totalChunks 
+                      });
+                      
+                      // If processing is complete, hide the loading circle
+                      if (processedChunks === totalChunks && totalChunks > 0) {
+                        setIsProcessingChunks(false);
+                        // Update the welcome message to indicate processing is complete
+                        setMessages([
+                          {
+                            id: 1,
+                            text: `You're now chatting with "${book.title}" by ${book.author}. The book has been processed and is ready for your questions!`,
+                            isUser: false,
+                            timestamp: new Date()
+                          }
+                        ]);
+                      }
+                    },
+                    (error) => {
+                      console.error('Error tracking progress:', error);
+                      setIsProcessingChunks(false);
+                    }
+                  );
+                } else {
+                  // Book is already processed
+                  console.log('Book is already processed');
+                  setIsProcessingChunks(false);
+                }
+              })
+              .catch(error => {
+                console.error('Error checking book processing status:', error);
+                setIsProcessingChunks(false);
+              });
           } else {
             // If book not found, show error and redirect to home
             setMessages([
