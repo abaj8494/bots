@@ -6,9 +6,44 @@ import { getOpenAIClient } from './openai';
 type EmbeddingsCache = Record<number, {
   chunks: string[];
   embeddings: number[][];
+  isProcessing?: boolean;
 }>;
 
 const embeddingsCache: EmbeddingsCache = {};
+
+/**
+ * Check if embeddings exist for a book without waiting for processing
+ */
+export async function checkEmbeddingsExist(bookId: number): Promise<boolean> {
+  return !!embeddingsCache[bookId] && 
+         !!embeddingsCache[bookId].chunks && 
+         !!embeddingsCache[bookId].embeddings && 
+         embeddingsCache[bookId].chunks.length > 0;
+}
+
+/**
+ * Ensure embeddings are ready (wait if they're being processed)
+ */
+export async function ensureEmbeddingsReady(bookId: number): Promise<void> {
+  // If embeddings are being processed, wait for them to complete
+  if (embeddingsCache[bookId]?.isProcessing) {
+    console.log(`Waiting for embeddings to complete for book ${bookId}...`);
+    
+    // Wait up to 30 seconds (check every 500ms)
+    for (let i = 0; i < 60; i++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if processing is complete
+      if (!embeddingsCache[bookId]?.isProcessing) {
+        console.log(`Embeddings processing completed for book ${bookId}`);
+        return;
+      }
+    }
+    
+    // If we get here, processing took too long
+    throw new Error(`Timed out waiting for embeddings to complete for book ${bookId}`);
+  }
+}
 
 // Expose a way to get chunk count from outside
 export function getEmbeddingsCacheInfo(bookId: number): { chunkCount: number } | null {
@@ -97,27 +132,44 @@ export async function processBookContent(
   forceRefresh: boolean = false
 ): Promise<void> {
   // Check if we already have embeddings for this book
-  if (!forceRefresh && embeddingsCache[bookId]) {
+  if (!forceRefresh && embeddingsCache[bookId] && !embeddingsCache[bookId].isProcessing) {
     console.log(`Using cached embeddings for book ${bookId}`);
     return;
   }
   
-  console.log(`Processing book ${bookId} for embeddings (${content.length} characters)`);
+  // Mark as processing to avoid duplicate processing
+  if (!embeddingsCache[bookId]) {
+    embeddingsCache[bookId] = { chunks: [], embeddings: [], isProcessing: true };
+  } else {
+    embeddingsCache[bookId].isProcessing = true;
+  }
   
-  // Split content into chunks
-  const chunks = chunkText(content);
-  console.log(`Book split into ${chunks.length} chunks`);
-  
-  // Generate embeddings
-  const embeddings = await generateEmbeddings(chunks, userId);
-  
-  // Cache the results
-  embeddingsCache[bookId] = {
-    chunks,
-    embeddings
-  };
-  
-  console.log(`Successfully processed and cached embeddings for book ${bookId}`);
+  try {
+    console.log(`Processing book ${bookId} for embeddings (${content.length} characters)`);
+    
+    // Split content into chunks
+    const chunks = chunkText(content);
+    console.log(`Book split into ${chunks.length} chunks`);
+    
+    // Generate embeddings
+    const embeddings = await generateEmbeddings(chunks, userId);
+    
+    // Cache the results
+    embeddingsCache[bookId] = {
+      chunks,
+      embeddings,
+      isProcessing: false
+    };
+    
+    console.log(`Successfully processed and cached embeddings for book ${bookId}`);
+  } catch (error) {
+    console.error(`Error processing embeddings for book ${bookId}:`, error);
+    // Make sure to mark as not processing even if there's an error
+    if (embeddingsCache[bookId]) {
+      embeddingsCache[bookId].isProcessing = false;
+    }
+    throw error;
+  }
 }
 
 /**

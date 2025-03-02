@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getBooks, sendChatMessage } from '../services/api';
+import ReactMarkdown from 'react-markdown';
 import './ChatInterface.css';
 
 interface Message {
@@ -203,7 +204,13 @@ const ChatInterface: React.FC = () => {
             key={message.id} 
             className={`message ${message.isUser ? 'user-message' : 'bot-message'}`}
           >
-            <div className="message-content">{message.text}</div>
+            <div className="message-content">
+              {message.isUser ? (
+                message.text
+              ) : (
+                <ReactMarkdown>{message.text}</ReactMarkdown>
+              )}
+            </div>
             <div className="message-timestamp">
               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>

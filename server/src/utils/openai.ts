@@ -1,7 +1,12 @@
 import OpenAI from 'openai';
 import { getApiKeyByUserId } from '../models/User';
 import { ChatCompletionMessageParam } from 'openai/resources';
-import { processBookContent, findRelevantChunks } from './embeddings';
+import { 
+  processBookContent, 
+  findRelevantChunks,
+  checkEmbeddingsExist,
+  ensureEmbeddingsReady
+} from './embeddings';
 
 // Simple in-memory cache for responses
 interface CacheEntry {
@@ -108,7 +113,30 @@ export const generateChatResponse = async (
     
     // Create book embeddings if they don't exist yet
     if (bookId) {
-      await processBookContent(bookId, bookContent, userId);
+      try {
+        // Check if embeddings exist without waiting for processing
+        const embeddingsExist = await checkEmbeddingsExist(bookId);
+        
+        if (!embeddingsExist) {
+          console.log(`First-time processing for book ${bookId}. Starting embeddings generation...`);
+          
+          // Start embeddings generation in the background (don't await)
+          processBookContent(bookId, bookContent, userId)
+            .then(() => console.log(`Background embeddings generation complete for book ${bookId}`))
+            .catch(err => console.error(`Background embeddings generation failed for book ${bookId}:`, err));
+          
+          // Return a friendly message instead of an error
+          return "I'm currently processing this book for the first time, which may take a few moments for larger texts. " +
+                 "Please ask your question again in 5-10 seconds. Thank you for your patience!";
+        }
+        
+        // Normal flow - embeddings already exist
+        console.log(`Embeddings already exist for book ${bookId}, proceeding with query`);
+        await ensureEmbeddingsReady(bookId);
+      } catch (error) {
+        console.error('Error checking or preparing embeddings:', error);
+        // Continue with fallback approach
+      }
     }
     
     // Relevant content to include in the prompt
@@ -157,18 +185,27 @@ export const generateChatResponse = async (
                  ${relevantContent}
                  
                  RESPONSE STYLE GUIDELINES:
-                 1. Be direct and concise in your responses.
-                 2. Use bullet points (•) whenever possible to structure information clearly.
-                 3. Include brief references to specific parts of the book (e.g., "Chapter 3", "Early in the story", "During the climax").
-                 4. Use direct quotes from the book when relevant, formatted with quotation marks.
-                 5. If asked about content not in these sections, acknowledge that you're only working with excerpts.
-                 6. Focus on the provided sections and do not make up content that isn't supported by them.
+                 1. Use markdown formatting in your responses.
+                 2. Be direct and concise in your responses.
+                 3. Use bullet points whenever possible to structure information clearly.
+                 4. Include brief references to specific parts of the book (e.g., "Chapter 3", "Early in the story", "During the climax").
+                 5. Use direct quotes from the book when relevant, formatted with > blockquotes.
+                 6. If asked about content not in these sections, acknowledge that you're only working with excerpts.
+                 7. Focus on the provided sections and do not make up content that isn't supported by them.
+                 8. Use **bold** for emphasis, *italics* for titles or terms, and ### headings for main sections.
+                 9. Use code blocks with \`\`\` for displaying poetry, verses, or structured content from the book.
                  
                  Example format:
-                 • Main point (reference to book section)
-                   "Relevant quote from the text" 
-                 • Second point with analysis
-                 • Third point with conclusion`
+                 ### Main Insights
+                 
+                 - **Key concept** (reference to book section)
+                   > "Relevant quote from the text" 
+                 
+                 - **Analysis point**
+                   Additional explanation...
+                 
+                 - **Conclusion**
+                   Summary of important takeaways...`
       }
     ];
     
