@@ -108,23 +108,35 @@ const ChatInterface: React.FC = () => {
                         total: totalChunks 
                       });
                       
-                      // If processing is complete, hide the loading circle
+                      // If processing is complete, hide the loading circle after a short delay
                       if (processedChunks === totalChunks && totalChunks > 0) {
-                        setIsProcessingChunks(false);
-                        // Update the welcome message to indicate processing is complete
-                        setMessages([
-                          {
-                            id: 1,
-                            text: `You're now chatting with "${book.title}" by ${book.author}. The book has been processed and is ready for your questions!`,
-                            isUser: false,
-                            timestamp: new Date()
-                          }
-                        ]);
+                        // Wait a moment to show the 100% completion state
+                        setTimeout(() => {
+                          setIsProcessingChunks(false);
+                          // Update the welcome message to indicate processing is complete
+                          setMessages([
+                            {
+                              id: 1,
+                              text: `I have now loaded "${book.title}" by ${book.author} into our context window. Whilst I am not an expert on this text, I do have a more local memory of the tokens which compose it. Ask me a question and I shall respond with Markdown :P`,
+                              isUser: false,
+                              timestamp: new Date()
+                            }
+                          ]);
+                        }, 1500);
                       }
                     },
                     (error) => {
                       console.error('Error tracking progress:', error);
                       setIsProcessingChunks(false);
+                      // Show error message
+                      setMessages([
+                        {
+                          id: 1,
+                          text: `Error processing book: ${error.message}. Please try again later.`,
+                          isUser: false,
+                          timestamp: new Date()
+                        }
+                      ]);
                     }
                   );
                 } else {
@@ -136,6 +148,14 @@ const ChatInterface: React.FC = () => {
               .catch(error => {
                 console.error('Error checking book processing status:', error);
                 setIsProcessingChunks(false);
+                setMessages([
+                  {
+                    id: 1,
+                    text: `Error connecting to the server: ${error.message}. Please try again later.`,
+                    isUser: false,
+                    timestamp: new Date()
+                  }
+                ]);
               });
           } else {
             // If book not found, show error and redirect to home
@@ -238,14 +258,38 @@ const ChatInterface: React.FC = () => {
               total: totalChunks 
             });
             
-            // If processing is complete, hide the loading circle
+            // If processing is complete, hide the loading circle after a short delay
             if (processedChunks === totalChunks && totalChunks > 0) {
-              setIsProcessingChunks(false);
+              // Wait a moment to show the 100% completion state
+              setTimeout(() => {
+                setIsProcessingChunks(false);
+                // Add a message indicating processing is complete
+                setMessages(prev => [
+                  ...prev,
+                  {
+                    id: Date.now() + 2,
+                    text: "Book processing completed. You can now ask questions about this book!",
+                    isUser: false,
+                    timestamp: new Date()
+                  }
+                ]);
+              }, 1500);
             }
           },
           (error) => {
             console.error('Error tracking progress:', error);
             setIsProcessingChunks(false);
+            
+            // Add error message
+            setMessages(prev => [
+              ...prev,
+              {
+                id: Date.now() + 2,
+                text: `Error processing book: ${error.message}. Please try again.`,
+                isUser: false,
+                timestamp: new Date()
+              }
+            ]);
           }
         );
       }

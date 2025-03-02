@@ -26,7 +26,7 @@ const AuthPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) =>
       <div className="auth-card">
         <div className="auth-logo">
           <h1>BookBot</h1>
-          <p>Preload Public Domain Books into the Context Window of the ChatGPT4o-mini model!</p>
+          <p>Preload Public Domain Books into the Context Window of ChatGPT4o-mini!</p>
         </div>
 
         <div className="auth-tabs">

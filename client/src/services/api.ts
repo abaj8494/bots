@@ -136,12 +136,17 @@ export const trackEmbeddingProgress = (
       console.log('Progress update received:', event.data);
       const data = JSON.parse(event.data);
       console.log(`Progress: ${data.processedChunks}/${data.totalChunks}`);
+      
+      // Call the onProgress callback with the current progress
       onProgress(data.processedChunks, data.totalChunks);
       
       // If processing is complete, close the connection
       if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
         console.log('Processing complete - closing SSE connection');
-        eventSource.close();
+        // Don't close immediately to give the UI time to show 100% completion
+        setTimeout(() => {
+          eventSource.close();
+        }, 1000);
       }
     } catch (error) {
       console.error('Error parsing progress data:', error);

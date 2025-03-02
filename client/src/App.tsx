@@ -42,7 +42,7 @@ function App() {
           <>
             <header className="App-header">
               <h1>BookBot</h1>
-              <p>Preload Public Domain Books into the Context Window of the ChatGPT4o-mini model!</p>
+              <p>Preload Public Domain Books into the Context Window of ChatGPT4o-mini!</p>
             </header>
             <main className="App-main">
               <Routes>
