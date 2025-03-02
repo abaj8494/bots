@@ -113,22 +113,34 @@ export const trackEmbeddingProgress = (
     return () => {}; // Return empty cleanup function
   }
   
+  console.log(`Setting up EventSource for book ID: ${bookId}`);
+  
   // Create EventSource for SSE connection
   // Note: EventSource doesn't support custom headers directly
   // We'll need to use a workaround or handle auth on the server differently
+  const eventSourceUrl = `${API_URL}/api/chat/progress/${bookId}?token=${encodeURIComponent(token)}`;
+  console.log(`EventSource URL: ${eventSourceUrl}`);
+  
   const eventSource = new EventSource(
-    `${API_URL}/api/chat/progress/${bookId}?token=${encodeURIComponent(token)}`,
+    eventSourceUrl,
     { withCredentials: true }
   );
   
   // Set up event handlers
+  eventSource.onopen = () => {
+    console.log('SSE Connection opened successfully');
+  };
+  
   eventSource.onmessage = (event) => {
     try {
+      console.log('Progress update received:', event.data);
       const data = JSON.parse(event.data);
+      console.log(`Progress: ${data.processedChunks}/${data.totalChunks}`);
       onProgress(data.processedChunks, data.totalChunks);
       
       // If processing is complete, close the connection
       if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+        console.log('Processing complete - closing SSE connection');
         eventSource.close();
       }
     } catch (error) {
@@ -144,6 +156,7 @@ export const trackEmbeddingProgress = (
   
   // Return a cleanup function
   return () => {
+    console.log('Cleaning up SSE connection');
     eventSource.close();
   };
 };

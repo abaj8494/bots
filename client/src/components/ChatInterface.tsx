@@ -83,12 +83,13 @@ const ChatInterface: React.FC = () => {
             
             // Check if we need to process embeddings by making a test message request
             console.log('Checking if embeddings need to be processed...');
-            setIsProcessingChunks(true);
+            setIsProcessingChunks(true); // Start showing loading immediately
             setChunkProgress({ processed: 0, total: 1 }); // Start with indefinite progress
             
             // Send an initial message to trigger embedding process if needed
             sendChatMessage(bookIdNum, "Are you ready to discuss this book?", [])
               .then(response => {
+                console.log('Initial message response:', response);
                 // Don't add the test message to the chat history
                 if (response.response && response.response.includes("processing this book for the first time")) {
                   console.log('Book needs initial processing');
