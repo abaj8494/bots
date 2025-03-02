@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { getApiKeyByUserId } from '../models/User';
 import { ChatCompletionMessageParam } from 'openai/resources';
+import { processBookContent, findRelevantChunks } from './embeddings';
 
 // Simple in-memory cache for responses
 interface CacheEntry {
@@ -13,6 +14,10 @@ const responseCache: Record<string, CacheEntry> = {};
 
 // Cache expiration time: 24 hours (in milliseconds)
 const CACHE_EXPIRATION = 24 * 60 * 60 * 1000;
+
+// Maximum book size for processing (in characters)
+// 1.5 million chars is roughly a 300k word book (very large book)
+const MAX_BOOK_SIZE = 1500000;
 
 // Generate a simple hash for the message
 const generateMessageHash = (message: string): string => {
@@ -70,6 +75,24 @@ export const generateChatResponse = async (
     console.log(`Generating chat response for message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
     console.log(`Book content length: ${bookContent.length} characters`);
     
+    // Check if book is extremely large
+    if (bookContent.length > MAX_BOOK_SIZE) {
+      console.warn(`Book content exceeds maximum recommended size (${bookContent.length} > ${MAX_BOOK_SIZE} characters)`);
+      
+      // If asking about size or experiencing issues
+      const sizeRelatedTerms = [
+        'size', 'large', 'big', 'error', 'issue', 'problem', 'not working',
+        'slow', 'timeout', 'fail', 'breaks', 'broken', 'stuck'
+      ];
+      
+      if (sizeRelatedTerms.some(term => message.toLowerCase().includes(term))) {
+        return "I notice you're asking about a very large book. The current book exceeds our recommended size limits. " +
+          "Our developers are working on adding a method to chunk books by chapters for better handling of extensive texts like this one. " +
+          "In the meantime, you might experience some limitations when discussing this particular book. " +
+          "Please try asking more specific questions about particular sections, which may help me provide more accurate responses.";
+      }
+    }
+    
     // Check cache if bookId is provided
     if (bookId) {
       const messageHash = generateMessageHash(message);
@@ -83,34 +106,63 @@ export const generateChatResponse = async (
       }
     }
     
+    // Create book embeddings if they don't exist yet
+    if (bookId) {
+      await processBookContent(bookId, bookContent, userId);
+    }
+    
+    // Relevant content to include in the prompt
+    let relevantContent: string;
+    
+    // Use embeddings to find relevant book sections if possible
+    if (bookId) {
+      try {
+        console.log('Finding relevant chunks using embeddings...');
+        
+        // Find the most relevant chunks for this question
+        const relevantChunks = await findRelevantChunks(bookId, message, userId, 5);
+        
+        console.log(`Found ${relevantChunks.length} relevant chunks for the query`);
+        
+        // Use these chunks instead of the full book content
+        relevantContent = relevantChunks.join('\n\n...\n\n');
+      } catch (error) {
+        console.error('Error finding relevant chunks:', error);
+        // Fall back to trimmed content
+        const MAX_CONTENT_CHARS = 100000;
+        relevantContent = bookContent.length > MAX_CONTENT_CHARS 
+          ? bookContent.substring(0, MAX_CONTENT_CHARS) + "... [Content trimmed due to length]" 
+          : bookContent;
+      }
+    } else {
+      // Fall back if no bookId
+      const MAX_CONTENT_CHARS = 100000;
+      relevantContent = bookContent.length > MAX_CONTENT_CHARS 
+        ? bookContent.substring(0, MAX_CONTENT_CHARS) + "... [Content trimmed due to length]" 
+        : bookContent;
+    }
+    
+    console.log(`Using ${relevantContent.length} characters of relevant book content for the response`);
+    
     const openai = await getOpenAIClient(userId);
-    
-    // Limit book content size to avoid token limits
-    // Average is ~4 characters per token, so 100K chars ~= 25K tokens
-    // This leaves room for conversation history and other messages
-    const MAX_CONTENT_CHARS = 100000;
-    const trimmedBookContent = bookContent.length > MAX_CONTENT_CHARS 
-      ? bookContent.substring(0, MAX_CONTENT_CHARS) + "... [Content trimmed due to length. This is an extract from the beginning of the book.]" 
-      : bookContent;
-    
-    console.log(`Using ${trimmedBookContent.length} characters of book content (${bookContent.length > MAX_CONTENT_CHARS ? 'trimmed' : 'full text'})`);
     
     // Build messages array with system message first
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: `You are an AI assistant that specializes in discussing and analyzing literature. 
-                 You have knowledge about the following book: 
+                 You have knowledge about a book, and I've selected the most relevant sections
+                 of the book for your current question. These sections are:
                  
-                 ${trimmedBookContent}
+                 ${relevantContent}
                  
                  RESPONSE STYLE GUIDELINES:
                  1. Be direct and concise in your responses.
                  2. Use bullet points (•) whenever possible to structure information clearly.
                  3. Include brief references to specific parts of the book (e.g., "Chapter 3", "Early in the story", "During the climax").
                  4. Use direct quotes from the book when relevant, formatted with quotation marks.
-                 5. If asked about content not in this book, politely redirect the conversation back to this specific work.
-                 6. If asked about parts of the book that might be beyond the excerpt you have, acknowledge that limitation.
+                 5. If asked about content not in these sections, acknowledge that you're only working with excerpts.
+                 6. Focus on the provided sections and do not make up content that isn't supported by them.
                  
                  Example format:
                  • Main point (reference to book section)

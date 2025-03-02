@@ -9,6 +9,7 @@ import { configurePassport } from './config/passport';
 import authRoutes from './routes/auth';
 import booksRoutes from './routes/books';
 import chatRoutes from './routes/chat';
+import embeddingRoutes from './routes/embedding';
 
 // Load environment variables
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/static', express.static(path.join(__dirname, '../public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/books', booksRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/embeddings', embeddingRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
