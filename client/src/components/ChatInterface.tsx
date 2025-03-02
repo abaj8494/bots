@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getBooks, sendChatMessage, trackEmbeddingProgress } from '../services/api';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import './ChatInterface.css';
+import { getBooks, sendChatMessage, getBook, trackEmbeddingProgress } from '../services/api';
 import LoadingCircle from './LoadingCircle';
+import './ChatInterface.css';
 
 interface Message {
   id: number;
@@ -21,33 +22,43 @@ interface Book {
 }
 
 const ChatInterface: React.FC = () => {
+  const { bookId } = useParams<{ bookId: string }>();
+  const navigate = useNavigate();
+  
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      text: "Loading book details...",
+      isUser: false,
+      timestamp: new Date()
+    }
+  ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // For tracking chunk processing progress
   const [isProcessingChunks, setIsProcessingChunks] = useState(false);
   const [chunkProgress, setChunkProgress] = useState({ processed: 0, total: 0 });
+  const progressCleanupRef = useRef<() => void>(() => {});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Ref to hold the cleanup function for event source
-  const progressCleanupRef = useRef<(() => void) | null>(null);
 
   // Fetch books on component mount
   useEffect(() => {
     const fetchBooks = async () => {
-      console.log('ChatInterface: Starting to fetch books...');
       try {
-        console.log('ChatInterface: Calling getBooks API...');
-        const books = await getBooks();
-        console.log('ChatInterface: Books received from API:', books);
+        console.log('Fetching books from API');
+        const data = await getBooks();
+        console.log('Books fetched successfully:', data);
+        setBooks(data);
         
-        if (!books || books.length === 0) {
-          console.warn('ChatInterface: No books received from the API');
+        // If no books are available
+        if (!data || data.length === 0) {
           setMessages([
             {
-              id: Date.now(),
-              text: "No books are available. Please contact the administrator.",
+              id: 1,
+              text: "No books are available at the moment. Please check back later.",
               isUser: false,
               timestamp: new Date()
             }
@@ -55,26 +66,42 @@ const ChatInterface: React.FC = () => {
           return;
         }
         
-        setBooks(books);
-        if (books.length > 0) {
-          console.log('ChatInterface: Setting first book as selected book:', books[0]);
-          setSelectedBook(books[0]);
-          // Add welcome message
-          setMessages([
-            {
-              id: 1,
-              text: `Welcome! You're now chatting with "${books[0].title}" by ${books[0].author}. Ask me anything about this book!`,
-              isUser: false,
-              timestamp: new Date()
-            }
-          ]);
+        // If there's a bookId in the URL, find that book
+        if (bookId) {
+          const bookIdNum = parseInt(bookId, 10);
+          const book = data.find((book: Book) => book.id === bookIdNum);
+          if (book) {
+            setSelectedBook(book);
+            setMessages([
+              {
+                id: 1,
+                text: `You're now chatting with "${book.title}" by ${book.author}. Ask me anything about this book!`,
+                isUser: false,
+                timestamp: new Date()
+              }
+            ]);
+          } else {
+            // If book not found, show error and redirect to home
+            setMessages([
+              {
+                id: 1,
+                text: "Sorry, the requested book was not found.",
+                isUser: false,
+                timestamp: new Date()
+              }
+            ]);
+            setTimeout(() => navigate('/'), 3000);
+          }
+        } else if (data.length > 0) {
+          // If no bookId specified but books exist, redirect to home
+          navigate('/');
         }
       } catch (error) {
         console.error('Error fetching books:', error);
         setMessages([
           {
-            id: Date.now(),
-            text: "Failed to load books. Please try refreshing the page or contact support.",
+            id: 1,
+            text: "Failed to load books. Please try again later.",
             isUser: false,
             timestamp: new Date()
           }
@@ -83,30 +110,21 @@ const ChatInterface: React.FC = () => {
     };
 
     fetchBooks();
-  }, []);
+  }, [bookId, navigate]);
 
-  // Scroll to bottom of messages
+  // Automatically scroll to the bottom of messages when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Handle changing the selected book
   const handleBookChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const bookId = parseInt(e.target.value);
-    const book = books.find(b => b.id === bookId) || null;
-    setSelectedBook(book);
-    
-    if (book) {
-      setMessages([
-        {
-          id: Date.now(),
-          text: `You're now chatting with "${book.title}" by ${book.author}. Ask me anything about this book!`,
-          isUser: false,
-          timestamp: new Date()
-        }
-      ]);
-    }
+    const bookId = parseInt(e.target.value, 10);
+    // Navigate to the new book's chat URL
+    navigate(`/chat/${bookId}`);
   };
 
+  // Handle sending a message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -256,20 +274,6 @@ const ChatInterface: React.FC = () => {
                 message.text
               ) : (
                 <>
-                  {/* Debug only: Show the raw markdown */}
-                  {/* <pre style={{ 
-                    whiteSpace: 'pre-wrap', 
-                    fontFamily: 'monospace', 
-                    fontSize: '12px', 
-                    padding: '8px', 
-                    background: '#f5f5f5', 
-                    borderRadius: '4px', 
-                    marginBottom: '8px', 
-                    display: 'none'
-                  }}>
-                    {message.text}
-                  </pre> */}
-                  
                   <div className="markdown-content">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]} 
