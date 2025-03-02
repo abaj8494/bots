@@ -1,103 +1,161 @@
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './LoadingCircle.css';
 
 interface LoadingCircleProps {
+  show?: boolean;
   processedChunks: number;
   totalChunks: number;
 }
 
-const LoadingCircle: React.FC<LoadingCircleProps> = ({ 
-  processedChunks, 
-  totalChunks 
+const LoadingCircle: React.FC<LoadingCircleProps> = ({
+  show = true,
+  processedChunks,
+  totalChunks,
 }) => {
-  // Calculate percentage for the circle fill
-  const percentage = totalChunks > 0 
-    ? Math.min(100, Math.floor((processedChunks / totalChunks) * 100)) 
+  // Store the highest value we've seen for processed and total chunks
+  // This prevents the progress from going backwards if updates arrive out of order
+  const [highestProcessed, setHighestProcessed] = useState(0);
+  const [highestTotal, setHighestTotal] = useState(0);
+  
+  // Animation for background rotation
+  const animationRef = useRef<number | null>(null);
+  const [rotation, setRotation] = useState(0);
+
+  useEffect(() => {
+    // Update highest values if current values are higher
+    if (processedChunks > highestProcessed) {
+      setHighestProcessed(processedChunks);
+    }
+    
+    if (totalChunks > highestTotal && totalChunks > 0) {
+      setHighestTotal(totalChunks);
+    }
+    
+    // Log updates to help debugging
+    if (processedChunks > 0 || totalChunks > 0) {
+      console.log(`LoadingCircle: received update - processed: ${processedChunks}, total: ${totalChunks}`);
+    }
+  }, [processedChunks, totalChunks, highestProcessed, highestTotal]);
+  
+  // Animation loop for background rotation
+  useEffect(() => {
+    if (!show) return;
+    
+    const animate = () => {
+      setRotation(prev => (prev + 0.2) % 360);
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [show]);
+
+  if (!show) return null;
+
+  // Use the highest values we've seen for calculations
+  const effectiveProcessed = Math.max(highestProcessed, processedChunks);
+  const effectiveTotal = Math.max(highestTotal, totalChunks, 1); // Prevent division by zero
+  
+  // Calculate percentage filled (0-100)
+  const percentage = effectiveTotal > 0 
+    ? Math.min(100, Math.round((effectiveProcessed / effectiveTotal) * 100)) 
     : 0;
   
-  // Calculate the stroke dash offset based on percentage
-  // SVG circle circumference = 2 * PI * radius
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference - (percentage / 100) * circumference;
+  // Calculate stroke dash offset based on percentage
+  const circumference = 2 * Math.PI * 40; // Circle radius is 40px
+  const dashOffset = circumference * (1 - percentage / 100);
   
-  // Generate a more descriptive message based on progress
-  const getProgressMessage = () => {
-    if (totalChunks === 0) return "Preparing to process book...";
-    
-    if (processedChunks === totalChunks) {
-      return "Processing complete! Preparing chat interface...";
-    }
-    
-    // Calculate batch number - matching exactly how the server calculates it
-    // Server uses: Math.floor(i/batchSize) + 1 where i is the index of the chunk being processed
-    const batchSize = 20;
-    
-    // Calculate which batch we're in - using integer division like the server
-    // The server processes chunk indices 0-19 as batch 1, 20-39 as batch 2, etc.
-    const currentBatch = Math.floor((processedChunks - 1) / batchSize) + 1;
-    const totalBatches = Math.ceil(totalChunks / batchSize);
-    
-    // Handle special case for the first batch (when no chunks have been processed yet)
-    if (processedChunks <= 0) {
-      return `Preparing to generate embeddings (${totalBatches} batches total)`;
-    }
-    
-    // Calculate approximate word and token counts based on chunks
-    // Each chunk is about 1000 characters with 200 character overlap
-    const approxCharacters = totalChunks * 800 + 200; // (1000-200)*totalChunks + 200 overlap for the last chunk
-    const approxWords = Math.round(approxCharacters / 5); // Assuming average of 5 chars per word
-    const approxTokens = Math.round(approxCharacters / 4); // Roughly 4 chars per token for English
-    
-    // Format the numbers with commas for readability
-    const formattedWords = approxWords.toLocaleString();
-    const formattedTokens = approxTokens.toLocaleString();
-    
-    return `Books contain many words. This one contains ${formattedWords}, which equates to ${formattedTokens} tokens. ChatGPT4o only permits context windows of 128K, and so we must be clever in re-embedding the text.\nProgress: batch ${currentBatch} of ${totalBatches}`;
+  // Calculate batch numbers (starting from 1 for user-friendly display)
+  const currentBatch = effectiveProcessed > 0 ? effectiveProcessed : 0;
+  const totalBatches = effectiveTotal > 0 ? effectiveTotal : 0;
+  
+  // Calculate words and tokens based on actual data
+  // Adjust character count estimate based on actual book data
+  const avgCharsPerChunk = 1000; // More realistic character count per chunk
+  const actualCharacters = effectiveTotal * avgCharsPerChunk;
+  
+  // Average English word is ~5 characters
+  const approxWords = Math.round(actualCharacters / 5);
+  
+  // Tokens are roughly 3/4 of word count for English text
+  const approxTokens = Math.round(approxWords * 0.75);
+  
+  // Format numbers with commas
+  const formatNumber = (num: number): string => {
+    return num.toLocaleString();
   };
   
+  // Generate progress message
+  let progressMessage = '';
+  
+  if (effectiveTotal === 0) {
+    progressMessage = 'Preparing to process book...';
+  } else if (effectiveProcessed === 0) {
+    progressMessage = `Getting ready to process ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
+  } else if (effectiveProcessed < effectiveTotal) {
+    // Calculate batch numbers more accurately for server display
+    const batchSize = 20; // Server processes chunks in batches of 20
+    const serverCurrentBatch = Math.floor(effectiveProcessed / batchSize) + 1;
+    const serverTotalBatches = Math.ceil(effectiveTotal / batchSize);
+    
+    progressMessage = `Processing batch ${serverCurrentBatch}/${serverTotalBatches}`;
+    progressMessage += `\nProcessed ${formatNumber(effectiveProcessed)} of ${formatNumber(effectiveTotal)} chunks`;
+    progressMessage += `\nBook contains approximately ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
+  } else {
+    progressMessage = `Completed processing ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
+  }
+
   return (
     <div className="loading-circle-container">
-      <div className="loading-circle-overlay">
-        <div className="loading-circle-message-top">
-          {getProgressMessage()}
-        </div>
-        <svg width="120" height="120" viewBox="0 0 120 120">
-          {/* Background circle */}
-          <circle 
-            cx="60" 
-            cy="60" 
-            r={radius} 
-            className="loading-circle-background"
+      <div className="loading-circle">
+        {/* Background circle with rotation animation */}
+        <svg 
+          width="100" 
+          height="100" 
+          viewBox="0 0 100 100"
+          style={{ transform: `rotate(${rotation}deg)` }}
+        >
+          <circle
+            className="loading-circle__background"
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            strokeWidth="5"
           />
-          
-          {/* Progress circle */}
-          <circle 
-            cx="60" 
-            cy="60" 
-            r={radius} 
-            className="loading-circle-progress"
-            style={{
-              strokeDasharray: circumference,
-              strokeDashoffset: dashOffset
-            }}
-            transform="rotate(-90, 60, 60)"
-          />
-          
-          {/* Text in the center */}
-          <text 
-            x="60" 
-            y="60" 
-            className="loading-circle-text"
-            dominantBaseline="middle"
-            textAnchor="middle"
-          >
-            {processedChunks}/{totalChunks}
-          </text>
         </svg>
-        <div className="loading-circle-message">
-          {percentage}% complete
+        
+        {/* Progress circle */}
+        <svg 
+          width="100" 
+          height="100" 
+          viewBox="0 0 100 100"
+        >
+          <circle
+            className="loading-circle__progress"
+            cx="50"
+            cy="50"
+            r="40"
+            fill="none"
+            strokeWidth="5"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            transform="rotate(-90 50 50)"
+          />
+        </svg>
+        
+        {/* Percentage text */}
+        <div className="loading-circle__percentage">
+          {percentage}%
         </div>
+      </div>
+      <div className="loading-circle__text">
+        {progressMessage}
       </div>
     </div>
   );

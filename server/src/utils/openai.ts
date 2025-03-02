@@ -126,8 +126,7 @@ export const generateChatResponse = async (
             .catch(err => console.error(`Background embeddings generation failed for book ${bookId}:`, err));
           
           // Return a friendly message instead of an error
-          return "I'm currently processing this book for the first time, which may take a few moments for larger texts. " +
-                 "Please ask your question again in 5-10 seconds. Thank you for your patience!";
+          return "I'm currently processing this book for the first time, which may take up to 3 minutes for larger texts. ";
         }
         
         // Normal flow - embeddings already exist
@@ -178,7 +177,7 @@ export const generateChatResponse = async (
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: `You are an AI assistant that specializes in discussing and analyzing literature. 
+        content: `You are a knowledgeable Literature professor. You know enough that you do not feel the necessity to prove your intellect or bow down to anyone. Due to your tenure, your answers are maximally brief and concise. AI assistant that specializes in discussing and analyzing literature. 
                  You have knowledge about a book, and I've selected the most relevant sections
                  of the book for your current question. These sections are:
                  

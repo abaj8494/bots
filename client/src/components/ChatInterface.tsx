@@ -103,40 +103,55 @@ const ChatInterface: React.FC = () => {
                     bookIdNum,
                     (processedChunks, totalChunks) => {
                       console.log(`Processing chunks: ${processedChunks}/${totalChunks}`);
-                      setChunkProgress({ 
-                        processed: processedChunks, 
-                        total: totalChunks 
-                      });
                       
-                      // If processing is complete, hide the loading circle after a short delay
-                      if (processedChunks === totalChunks && totalChunks > 0) {
+                      // Only update progress if the total is non-zero 
+                      // This prevents showing incorrect batch counts during initialization
+                      if (totalChunks > 0) {
+                        setChunkProgress({ 
+                          processed: processedChunks, 
+                          total: totalChunks 
+                        });
+                      }
+                      
+                      // IMPORTANT: Only hide the loading circle when we're COMPLETELY done
+                      // and have received valid data (both values > 0)
+                      if (processedChunks === totalChunks && totalChunks > 0 && processedChunks > 0) {
                         // Wait a moment to show the 100% completion state
+                        // Use a longer delay to ensure the entire process has finished
                         setTimeout(() => {
-                          setIsProcessingChunks(false);
-                          // Update the welcome message to indicate processing is complete
-                          setMessages([
-                            {
-                              id: 1,
-                              text: `I have now loaded "${book.title}" by ${book.author} into our context window. Whilst I am not an expert on this text, I do have a more local memory of the tokens which compose it. Ask me a question and I shall respond with Markdown :P`,
-                              isUser: false,
-                              timestamp: new Date()
+                          // Double check that we're still in the same state before hiding
+                          setChunkProgress(current => {
+                            // Only hide if we're still showing complete
+                            if (current.processed === current.total && current.total > 0) {
+                              setIsProcessingChunks(false);
+                              // Update the welcome message to indicate processing is complete
+                              updateWelcomeMessage(`I have now loaded "${book.title}" by ${book.author} into our context window. Whilst I am not an expert on this text, I do have a more local memory of the tokens which compose it. Ask me a question and I shall respond with Markdown :P`);
                             }
-                          ]);
-                        }, 1500);
+                            return current;
+                          });
+                        }, 3000); // Increased delay to ensure full completion
                       }
                     },
                     (error) => {
                       console.error('Error tracking progress:', error);
-                      setIsProcessingChunks(false);
-                      // Show error message
-                      setMessages([
-                        {
-                          id: 1,
-                          text: `Error processing book: ${error.message}. Please try again later.`,
-                          isUser: false,
-                          timestamp: new Date()
-                        }
-                      ]);
+                      
+                      // Only show error message and hide loading if we haven't received any progress updates
+                      // If we've already started processing and have some progress, 
+                      // don't disrupt the user experience with an error
+                      if (chunkProgress.total === 0) {
+                        setIsProcessingChunks(false);
+                        
+                        // Check if this is a connection error or a processing error
+                        const errorMessage = error.message || 'Unknown error';
+                        const isConnectionError = errorMessage.includes('connecting');
+                        
+                        // Show error message only if we haven't made any progress
+                        updateWelcomeMessage(`Error processing book: ${errorMessage}. Please try again later.`);
+                      } else {
+                        // If we have some progress but encounter an error, just log it
+                        // but don't disrupt the user - the book might have processed successfully
+                        console.log('Error during progress tracking, but continuing since progress was being made');
+                      }
                     }
                   );
                 } else {
@@ -197,6 +212,14 @@ const ChatInterface: React.FC = () => {
   // Handle changing the selected book
   const handleBookChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const bookId = parseInt(e.target.value, 10);
+    
+    // Cleanup any ongoing processing before changing books
+    if (isProcessingChunks && progressCleanupRef.current) {
+      console.log('Cleaning up processing for previous book before switching');
+      progressCleanupRef.current(); // Close the EventSource connection
+      setIsProcessingChunks(false); // Hide the loading circle
+    }
+    
     // Navigate to the new book's chat URL
     navigate(`/chat/${bookId}`);
   };
@@ -253,43 +276,62 @@ const ChatInterface: React.FC = () => {
         progressCleanupRef.current = trackEmbeddingProgress(
           selectedBook.id,
           (processedChunks, totalChunks) => {
-            setChunkProgress({ 
-              processed: processedChunks, 
-              total: totalChunks 
-            });
+            // Only update progress if the total is non-zero 
+            // This prevents showing incorrect batch counts during initialization
+            if (totalChunks > 0) {
+              setChunkProgress({ 
+                processed: processedChunks, 
+                total: totalChunks 
+              });
+            }
             
-            // If processing is complete, hide the loading circle after a short delay
-            if (processedChunks === totalChunks && totalChunks > 0) {
+            // IMPORTANT: Only hide the loading circle when we're COMPLETELY done
+            // and have received valid data (both values > 0)
+            if (processedChunks === totalChunks && totalChunks > 0 && processedChunks > 0) {
               // Wait a moment to show the 100% completion state
+              // Use a longer delay to ensure the entire process has finished
               setTimeout(() => {
-                setIsProcessingChunks(false);
-                // Add a message indicating processing is complete
-                setMessages(prev => [
-                  ...prev,
-                  {
-                    id: Date.now() + 2,
-                    text: "Book processing completed. You can now ask questions about this book!",
-                    isUser: false,
-                    timestamp: new Date()
+                // Double check that we're still in the same state before hiding
+                setChunkProgress(current => {
+                  // Only hide if we're still showing complete
+                  if (current.processed === current.total && current.total > 0) {
+                    setIsProcessingChunks(false);
+                    // Add a message indicating processing is complete
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: Date.now() + 2,
+                        text: `Processing complete! I have now loaded "${selectedBook.title}" by ${selectedBook.author} into our context window. Ask me a question about this book.`,
+                        isUser: false,
+                        timestamp: new Date()
+                      }
+                    ]);
                   }
-                ]);
-              }, 1500);
+                  return current;
+                });
+              }, 3000); // Increased delay to ensure full completion
             }
           },
           (error) => {
             console.error('Error tracking progress:', error);
-            setIsProcessingChunks(false);
             
-            // Add error message
-            setMessages(prev => [
-              ...prev,
-              {
-                id: Date.now() + 2,
-                text: `Error processing book: ${error.message}. Please try again.`,
-                isUser: false,
-                timestamp: new Date()
-              }
-            ]);
+            // Only show error message and hide loading if we haven't received any progress updates
+            // If we've already started processing and have some progress, 
+            // don't disrupt the user experience with an error
+            if (chunkProgress.total === 0) {
+              setIsProcessingChunks(false);
+              
+              // Check if this is a connection error or a processing error
+              const errorMessage = error.message || 'Unknown error';
+              const isConnectionError = errorMessage.includes('connecting');
+              
+              // Show error message only if we haven't made any progress
+              updateWelcomeMessage(`Error processing book: ${errorMessage}. Please try again later.`);
+            } else {
+              // If we have some progress but encounter an error, just log it
+              // but don't disrupt the user - the book might have processed successfully
+              console.log('Error during progress tracking, but continuing since progress was being made');
+            }
           }
         );
       }
@@ -331,6 +373,33 @@ const ChatInterface: React.FC = () => {
       }
     };
   }, []);
+
+  // Don't lose messages when a book is first being processed
+  // Only replace the welcome message, not the entire conversation
+  const updateWelcomeMessage = (newText: string) => {
+    setMessages(prev => {
+      // If we only have one message (the welcome message), replace it
+      if (prev.length === 1 && prev[0].id === 1) {
+        return [{
+          id: 1,
+          text: newText,
+          isUser: false,
+          timestamp: new Date()
+        }];
+      }
+      
+      // Otherwise, only update the welcome message and keep others
+      return prev.map(msg => {
+        if (msg.id === 1) {
+          return {
+            ...msg,
+            text: newText
+          };
+        }
+        return msg;
+      });
+    });
+  };
 
   return (
     <div className="chat-container">
@@ -482,6 +551,7 @@ const ChatInterface: React.FC = () => {
       {/* Add the loading circle for chunk processing */}
       {isProcessingChunks && (
         <LoadingCircle 
+          show={true}
           processedChunks={chunkProgress.processed} 
           totalChunks={chunkProgress.total} 
         />
