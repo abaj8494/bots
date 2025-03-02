@@ -1,31 +1,30 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { Request, Response } from 'express';
 import { auth, UserPayload } from '../middleware/auth';
 import { getBookById } from '../models/Book';
 import { saveChatMessage, getChatHistoryByUserAndBook, deleteChatHistory } from '../models/Chat';
 import { generateChatResponse, ChatHistoryMessage } from '../utils/openai';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // @route   POST api/chat/:bookId
 // @desc    Send a message to chat with a book
 // @access  Private
-router.post('/:bookId', auth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:bookId', auth, async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
     const bookId = parseInt(req.params.bookId);
-    const userId = req.user?.id;
     
-    if (!userId) {
-      res.status(401).json({ msg: 'User not authenticated' });
-      return;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: 'User not authenticated' });
     }
+    
+    const userId = req.user.id;
     
     // Get book content
     const book = await getBookById(bookId);
     if (!book) {
-      res.status(404).json({ msg: 'Book not found' });
-      return;
+      return res.status(404).json({ msg: 'Book not found' });
     }
     
     // Get previous chat history for context
@@ -58,21 +57,20 @@ router.post('/:bookId', auth, async (req: Request, res: Response): Promise<void>
 // @route   GET api/chat/:bookId
 // @desc    Get chat history for a book
 // @access  Private
-router.get('/:bookId', auth, async (req: Request, res: Response): Promise<void> => {
+router.get('/:bookId', auth, async (req: Request, res: Response) => {
   try {
     const bookId = parseInt(req.params.bookId);
-    const userId = req.user?.id;
     
-    if (!userId) {
-      res.status(401).json({ msg: 'User not authenticated' });
-      return;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: 'User not authenticated' });
     }
+    
+    const userId = req.user.id;
     
     // Check if book exists
     const book = await getBookById(bookId);
     if (!book) {
-      res.status(404).json({ msg: 'Book not found' });
-      return;
+      return res.status(404).json({ msg: 'Book not found' });
     }
     
     // Get chat history
@@ -88,15 +86,15 @@ router.get('/:bookId', auth, async (req: Request, res: Response): Promise<void> 
 // @route   DELETE api/chat/:bookId
 // @desc    Delete chat history for a book
 // @access  Private
-router.delete('/:bookId', auth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:bookId', auth, async (req: Request, res: Response) => {
   try {
     const bookId = parseInt(req.params.bookId);
-    const userId = req.user?.id;
     
-    if (!userId) {
-      res.status(401).json({ msg: 'User not authenticated' });
-      return;
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: 'User not authenticated' });
     }
+    
+    const userId = req.user.id;
     
     // Delete chat history
     const deletedCount = await deleteChatHistory(userId, bookId);

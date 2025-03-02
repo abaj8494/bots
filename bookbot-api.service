@@ -1,0 +1,17 @@
+[Unit]
+Description=Bookbot API Server
+After=network.target postgresql.service
+
+[Service]
+User=root
+WorkingDirectory=/var/www/cloud
+ExecStart=/var/www/cloud/start-server.sh
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=bookbot-api
+Environment=NODE_ENV=production PORT=5001
+
+[Install]
+WantedBy=multi-user.target 

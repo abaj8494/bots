@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 import { login, register, getCurrentUser } from '../services/api';
 
 interface User {
@@ -40,35 +41,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load user on initial render if token exists
+  // Function to set authorization header for all axios requests
+  const setAuthToken = (token: string | null) => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      localStorage.setItem('token', token);
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+      localStorage.removeItem('token');
+    }
+  };
+
+  // Load user from token if it exists
   useEffect(() => {
     const loadUser = async () => {
+      // Check if token exists in localStorage
+      const token = localStorage.getItem('token');
+      
       if (token) {
+        setAuthToken(token);
+        
         try {
-          const userData = await getCurrentUser();
-          setUser(userData);
+          // Verify token and get user data
+          const res = await axios.get('http://localhost:5002/api/auth/me');
+          setUser(res.data);
           setIsAuthenticated(true);
         } catch (err) {
-          localStorage.removeItem('token');
-          setToken(null);
+          console.error('Error loading user:', err);
+          setAuthToken(null);
           setUser(null);
           setIsAuthenticated(false);
-          setError('Session expired. Please login again.');
         }
       }
+      
       setLoading(false);
     };
 
     loadUser();
-  }, [token]);
+  }, []);
 
-  // Login user
+  // Login function
   const loginUser = async (email: string, password: string) => {
     try {
       setLoading(true);
       const data = await login(email, password);
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
+      setAuthToken(data.token);
       const userData = await getCurrentUser();
       setUser(userData);
       setIsAuthenticated(true);
@@ -86,8 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       const data = await register(username, email, password);
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
+      setAuthToken(data.token);
       const userData = await getCurrentUser();
       setUser(userData);
       setIsAuthenticated(true);
@@ -100,10 +116,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Logout user
+  // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
+    setAuthToken(null);
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -130,4 +145,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
+
+export default AuthContext; 

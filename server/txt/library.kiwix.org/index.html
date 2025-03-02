@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link type="root" href="index.html">
+    <title>Kiwix Library</title>
+    <link
+      type="text/css"
+      href="https://library.kiwix.org/skin/kiwix.css?KIWIXCACHEID"
+      rel="Stylesheet"
+    />
+    <link
+      type="text/css"
+      href="https://library.kiwix.org/skin/index.css?KIWIXCACHEID"
+      rel="Stylesheet"
+    />
+    <link
+      rel="alternate"
+      type="application/atom+xml"
+      title="Library OPDS Feed"
+      id="headFeedLink"
+      href="https://library.kiwix.org/catalog/v2/entries"
+    />
+    <link rel="search" type="application/opensearchdescription+xml" href="https://library.kiwix.org/catalog/searchdescription.xml" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://library.kiwix.org/skin/favicon/apple-touch-icon.png?KIWIXCACHEID">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://library.kiwix.org/skin/favicon/favicon-32x32.png?KIWIXCACHEID">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://library.kiwix.org/skin/favicon/favicon-16x16.png?KIWIXCACHEID">
+    <link rel="manifest" href="https://library.kiwix.org/skin/favicon/site.webmanifest?KIWIXCACHEID">
+    <link rel="mask-icon" href="https://library.kiwix.org/skin/favicon/safari-pinned-tab.svg?KIWIXCACHEID" color="#5bbad5">
+    <link rel="shortcut icon" href="https://library.kiwix.org/skin/favicon/favicon.ico?KIWIXCACHEID">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-config" content="/skin/favicon/browserconfig.xml?KIWIXCACHEID">
+    <meta name="theme-color" content="#ffffff">
+    <script type="text/javascript" src="https://library.kiwix.org/skin/polyfills.js?KIWIXCACHEID"></script>
+    <script type="text/javascript" src="https://library.kiwix.org/viewer_settings.js"></script>
+    <script type="module" src="https://library.kiwix.org/skin/i18n.js?KIWIXCACHEID" defer></script>
+    <script type="text/javascript" src="https://library.kiwix.org/skin/languages.js?KIWIXCACHEID" defer></script>
+    <script src="https://library.kiwix.org/skin/isotope.pkgd.min.js?KIWIXCACHEID" defer></script>
+    <script src="https://library.kiwix.org/skin/iso6391To3.js?KIWIXCACHEID"></script>
+    <script type="text/javascript" src="https://library.kiwix.org/skin/index.js?KIWIXCACHEID" defer></script>
+    <link rel="stylesheet" type="text/css" href="https://donorbox.org/animate-popup-donate-button.css">
+    <script type="text/javascript" id="donorbox-donate-button-installer" src="https://donorbox.org/install-donate-button.js" data-target="_blank" data-href="https://donorbox.org/kiwix?default_interval=m" data-style="background: rgb(255, 153, 51); color: rgb(255, 255, 255); text-decoration: none; font-family: Verdana, sans-serif; display: flex; font-size: 16px; padding: 8px 22px 8px 18px; border-radius: 5px 5px 0px 0px; gap: 8px; width: fit-content; line-height: 24px; position: fixed; top: 50%; transform-origin: center center; z-index: 9999; overflow: hidden; right: 20px; transform: translate(50%, -50%) rotate(-90deg);" data-button-cta="Support" data-img-src="https://donorbox.org/images/white_logo.svg"></script>
+  </head>
+  <body>
+    <noscript>
+      <style>
+        .kiwixNav, .kiwixHomeBody, #feedLink, .kiwixfooter {
+          display: none;
+        }
+        html, body {
+          height: 100%;
+        }
+        .noScriptLinkContainer {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          -moz-transform: translateX(-50%) translateY(-50%);
+          -webkit-transform: translateX(-50%) translateY(-50%);
+          transform: translateX(-50%) translateY(-50%);
+          font-size: 16px;
+          font-family: roboto;
+        }
+      </style>
+      <div class="noScriptLinkContainer">
+        <span id="noScriptLinkText">This page cannot be accessed if JavaScript is not enabled. Please head over to <a href="https://library.kiwix.org/nojs">nojs endpoint.</a></span>
+      </div>
+    </noscript>
+    <div class='kiwixNav'>
+      <a href="https://library.kiwix.org/catalog/v2/entries" id="feedLink">
+        <img src="https://library.kiwix.org/skin/feed.svg?KIWIXCACHEID"
+             class="feedLogo"
+             id="feedLogo"
+             alt="Library OPDS Feed"
+             aria-label="Library OPDS Feed"
+             title="Library OPDS Feed">
+      </a>
+      <a onclick="window.modalUILanguageSelector.show()"
+         alt="Select UI language"
+         aria-label="Select UI language"
+         title="Select UI language">
+        <img src="https://library.kiwix.org/skin/langSelector.svg?KIWIXCACHEID"
+             id="uiLanguageSelectorButton">
+      </a>
+      <div class="kiwixNav__filters">
+        <div class="kiwixNav__select">
+          <select name="lang" id="languageFilter" class='kiwixNav__kiwixFilter filter'>
+            <option value="" selected>All languages</option>
+          </select>
+        </div>
+        <div class="kiwixNav__select">
+          <select name="category" id="categoryFilter" class='kiwixNav__kiwixFilter filter'>
+            <option value="" selected>All categories</option>
+          </select>
+        </div>
+      </div>
+      <form id='kiwixSearchForm' class='kiwixNav__SearchForm'>
+        <input type="text" name="q" accesskey="s" placeholder="Search" id="searchFilter" class='kiwixSearch filter'>
+        <span class="kiwixButton tagFilterLabel"></span>
+        <input type="submit" class="kiwixButton kiwixButtonHover" id="searchButton" value="Search"/>
+      </form>
+    </div>
+    <div class="kiwixHomeBody">
+      <div class="book__list">
+        <h3 class="kiwixHomeBody__results"></h3>
+      </div>
+      <div id="fadeOut" class="fadeOut"></div>
+    </div>
+    <div class="loader" style="position: absolute; top: 50%"><div class="loader-spinner"></div></div>
+    <div id="kiwixfooter" class="kiwixfooter">Powered by&nbsp;<a href="https://kiwix.org">Kiwix</a></div>
+  </body>
+  <script>
+    function closeModal() {
+      for(modal of document.getElementsByClassName('modal-wrapper')) {
+        if ( modal.id == "uiLanguageSelector" ) {
+          window.modalUILanguageSelector.close();
+        } else {
+          modal.remove();
+        }
+      }
+    }
+  </script>
+</html>

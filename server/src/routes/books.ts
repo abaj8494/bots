@@ -1,13 +1,13 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router, RequestHandler } from 'express';
 import { auth } from '../middleware/auth';
 import { getAllBooks, getBookById, createBook, updateBook, deleteBook } from '../models/Book';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // @route   GET api/books
 // @desc    Get all books
 // @access  Public
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', (async (req: Request, res: Response) => {
   try {
     console.log('Fetching all books...');
     const books = await getAllBooks();
@@ -17,12 +17,12 @@ router.get('/', async (req: Request, res: Response) => {
     console.error('Error fetching books:', err);
     res.status(500).json({ msg: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 // @route   GET api/books/:id
 // @desc    Get book by ID
 // @access  Public
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', (async (req: Request, res: Response) => {
   try {
     const book = await getBookById(parseInt(req.params.id));
     
@@ -35,12 +35,12 @@ router.get('/:id', async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 // @route   POST api/books
 // @desc    Create a new book (admin only in a real app)
 // @access  Private
-router.post('/', auth, async (req: Request, res: Response) => {
+router.post('/', auth, (async (req: Request, res: Response) => {
   try {
     const { title, author, description, content, cover_image } = req.body;
     
@@ -57,7 +57,7 @@ router.post('/', auth, async (req: Request, res: Response) => {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 // @route   PUT api/books/:id
 // @desc    Update a book (admin only in a real app)

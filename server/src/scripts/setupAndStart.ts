@@ -40,18 +40,35 @@ importProcess.on('close', (code) => {
   
   console.log('Books imported successfully');
   
-  // Then start the server
-  console.log('Starting server...');
-  const serverProcess = spawn('npm', ['run', 'dev'], {
+  // Create default user
+  console.log('Creating default user...');
+  const createUserProcess = spawn('npx', ['ts-node', 'src/scripts/createDefaultUser.ts'], {
     stdio: 'inherit',
     shell: true,
     cwd: path.join(__dirname, '../../')
   });
   
-  serverProcess.on('close', (code) => {
+  createUserProcess.on('close', (code) => {
     if (code !== 0) {
-      console.error(`Server process exited with code ${code}`);
+      console.error(`Create user process exited with code ${code}`);
       process.exit(code || 1);
     }
+    
+    console.log('Default user created successfully');
+    
+    // Then start the server
+    console.log('Starting server...');
+    const serverProcess = spawn('npm', ['run', 'dev'], {
+      stdio: 'inherit',
+      shell: true,
+      cwd: path.join(__dirname, '../../')
+    });
+    
+    serverProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`Server process exited with code ${code}`);
+        process.exit(code || 1);
+      }
+    });
   });
 }); 

@@ -1,138 +1,117 @@
-# BookBot
+# BookBot - Chat with Your Favorite Books
 
-BookBot is a full-stack web application that connects publicly available books to the OpenAI API, allowing users to chat with books using AI.
+BookBot is an AI-powered application that allows users to chat with their favorite books. The application uses natural language processing to generate responses based on the content of the books.
 
 ## Features
 
-- Browse a collection of classic books
-- Chat with books using OpenAI's GPT-4o-mini model
-- User authentication system
-- Responsive UI
+- User authentication with email/password and OAuth (Google, GitHub)
+- Email verification for new accounts
+- Chat with books using AI
+- Responsive UI for desktop and mobile
 
-## Tech Stack
+## Setup Instructions
 
-- **Frontend**: React, TypeScript, CSS
-- **Backend**: Node.js, Express, TypeScript
-- **Database**: PostgreSQL
-- **AI**: OpenAI API (GPT-4o-mini)
-
-## Prerequisites
+### Prerequisites
 
 - Node.js (v14 or higher)
-- PostgreSQL
-- OpenAI API key
+- PostgreSQL database
+- SMTP server for sending emails (can use Gmail)
+- Google and GitHub OAuth credentials (optional, for OAuth login)
 
-## Setup
+### Installation
 
-### 1. Clone the repository
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/bookbot.git
+   cd bookbot
+   ```
 
-```bash
-git clone <repository-url>
-cd bookbot
-```
+2. Install dependencies for both client and server:
+   ```
+   # Install server dependencies
+   cd server
+   npm install
 
-### 2. Set up the database
+   # Install client dependencies
+   cd ../client
+   npm install
+   ```
 
-Create a PostgreSQL database named `bookbot`:
+3. Set up environment variables:
+   - Copy `.env.example` to `.env` in the server directory
+   - Update the values in the `.env` file with your own credentials
 
-```bash
-createdb bookbot
-```
+4. Set up the database:
+   - Create a PostgreSQL database
+   - Update the `DATABASE_URL` in the `.env` file
+   - Run the database setup script:
+     ```
+     cd server
+     npm run setup-and-start
+     ```
 
-### 3. Configure environment variables
+5. Set up the verification tables:
+   ```
+   cd server
+   npm run setup-verification
+   ```
 
-Create a `.env` file in the `server` directory with the following variables:
+6. Start the development servers:
+   ```
+   # Start the server (in one terminal)
+   cd server
+   npm run dev
 
-```
-PORT=5001
-NODE_ENV=development
-DATABASE_URL=postgres://<username>:<password>@localhost:5432/bookbot
-JWT_SECRET=your_jwt_secret_key_change_this_in_production
-OPENAI_API_KEY=your_openai_api_key
-```
+   # Start the client (in another terminal)
+   cd client
+   npm start
+   ```
 
-Replace `<username>` and `<password>` with your PostgreSQL credentials.
+7. Access the application at `http://localhost:3000`
 
-### 4. Install dependencies
+### OAuth Configuration
 
-```bash
-# Install server dependencies
-cd server
-npm install
+To enable OAuth login with Google and GitHub, you need to set up OAuth applications:
 
-# Install client dependencies
-cd ../client
-npm install
-```
+#### Google OAuth Setup:
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project
+3. Navigate to "APIs & Services" > "Credentials"
+4. Create an OAuth 2.0 Client ID
+5. Set the authorized redirect URI to `http://localhost:5002/api/auth/google/callback`
+6. Copy the Client ID and Client Secret to your `.env` file
 
-### 5. Add book text files
+#### GitHub OAuth Setup:
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Create a new OAuth App
+3. Set the authorization callback URL to `http://localhost:5002/api/auth/github/callback`
+4. Copy the Client ID and Client Secret to your `.env` file
 
-Place `.txt` files of books you want to import in the `server/txt` directory. The application comes with several classic books:
+### Email Configuration
 
-- 1984.txt
-- brave-new-world.txt
-- hamlet.txt
-- the-great-gatsby.txt
-- wealth-of-nations.txt
+To enable email verification, you need to set up an SMTP server:
 
-### 6. Run the application
+1. If using Gmail:
+   - Enable 2-factor authentication on your Google account
+   - Generate an App Password
+   - Use this App Password in your `.env` file
 
-#### Option 1: Run with automatic book import
-
-```bash
-cd server
-npm run setup-and-start
-```
-
-This will:
-1. Import all books from the `txt` directory into the database
-2. Start the server on port 5001
-
-#### Option 2: Run server and client separately
-
-Terminal 1:
-```bash
-cd server
-npm run dev
-```
-
-Terminal 2:
-```bash
-cd client
-npm start
-```
+2. Update the email configuration in your `.env` file:
+   ```
+   EMAIL_HOST=smtp.gmail.com
+   EMAIL_PORT=587
+   EMAIL_SECURE=false
+   EMAIL_USER=your_email@gmail.com
+   EMAIL_PASSWORD=your_app_password
+   ```
 
 ## Usage
 
-1. Open your browser and navigate to `http://localhost:3000`
-2. Browse the available books
-3. Select a book to chat with
-4. Ask questions about the book and get AI-powered responses
-
-## API Endpoints
-
-### Books
-
-- `GET /api/books` - Get all books
-- `GET /api/books/:id` - Get a specific book
-- `POST /api/books` - Add a new book (requires authentication)
-- `PUT /api/books/:id` - Update a book (requires authentication)
-- `DELETE /api/books/:id` - Delete a book (requires authentication)
-
-### Authentication
-
-- `POST /api/auth/register` - Register a new user
-- `POST /api/auth/login` - Login and get JWT token
-- `GET /api/auth/me` - Get current user (requires authentication)
-- `POST /api/auth/apikey` - Save or update OpenAI API key (requires authentication)
-- `GET /api/auth/apikey` - Check if user has an API key (requires authentication)
-
-### Chat
-
-- `POST /api/chat/:bookId` - Send a message to chat with a book (requires authentication)
-- `GET /api/chat/:bookId` - Get chat history for a book (requires authentication)
-- `DELETE /api/chat/:bookId` - Delete chat history for a book (requires authentication)
+1. Register a new account or log in with Google/GitHub
+2. Verify your email address (if registering with email/password)
+3. Select a book from the dropdown menu
+4. Start chatting with the book!
 
 ## License
 
-MIT 
+This project is licensed under the MIT License - see the LICENSE file for details. 

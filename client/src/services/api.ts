@@ -1,21 +1,22 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Use environment variable if available, otherwise default to production URL
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud/api';
 
-// Create axios instance
+// Set up axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-// Add token to requests if available
+// Add token to requests if it exists
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers['x-auth-token'] = token;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -24,14 +25,14 @@ api.interceptors.request.use(
   }
 );
 
-// Auth API
-export const register = async (username: string, email: string, password: string) => {
-  const response = await api.post('/auth/register', { username, email, password });
+// Authentication services
+export const login = async (email: string, password: string) => {
+  const response = await api.post('/auth/login', { email, password });
   return response.data;
 };
 
-export const login = async (email: string, password: string) => {
-  const response = await api.post('/auth/login', { email, password });
+export const register = async (username: string, email: string, password: string) => {
+  const response = await api.post('/auth/register', { username, email, password });
   return response.data;
 };
 
@@ -40,17 +41,17 @@ export const getCurrentUser = async () => {
   return response.data;
 };
 
-export const saveApiKey = async (apiKey: string) => {
-  const response = await api.post('/auth/apikey', { apiKey });
-  return response.data;
-};
-
 export const checkApiKey = async () => {
   const response = await api.get('/auth/apikey');
   return response.data;
 };
 
-// Books API
+export const saveApiKey = async (apiKey: string) => {
+  const response = await api.post('/auth/apikey', { apiKey });
+  return response.data;
+};
+
+// Book services
 export const getBooks = async () => {
   const response = await api.get('/books');
   return response.data;
@@ -61,9 +62,9 @@ export const getBook = async (id: number) => {
   return response.data;
 };
 
-// Chat API
-export const sendMessage = async (bookId: number, message: string) => {
-  const response = await api.post(`/chat/${bookId}`, { message });
+// Chat services
+export const sendChatMessage = async (bookId: number, message: string, chatHistory: any[] = []) => {
+  const response = await api.post(`/chat/${bookId}`, { message, chatHistory });
   return response.data;
 };
 

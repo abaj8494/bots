@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self' data: 'unsafe-inline' 'unsafe-eval';
+                   frame-src 'self';
+                   object-src 'none';">
+    <title>ZIM Viewer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="text/css" href="https://library.kiwix.org/skin/kiwix.css?cacheid=2158fad9" rel="Stylesheet" />
+    <link type="text/css" href="https://library.kiwix.org/skin/taskbar.css?cacheid=e014a885" rel="Stylesheet" />
+    <link type="text/css" href="https://library.kiwix.org/skin/autoComplete/css/autoComplete.css?cacheid=ef30cd42" rel="Stylesheet" />
+    <script type="text/javascript" src="https://library.kiwix.org/skin/polyfills.js?cacheid=a0e0343d"></script>
+    <script type="text/javascript" src="https://library.kiwix.org/viewer_settings.js"></script>
+    <script type="module" src="https://library.kiwix.org/skin/i18n.js?cacheid=071abc9a" defer></script>
+    <script type="text/javascript" src="https://library.kiwix.org/skin/languages.js?cacheid=5be77f5c" defer></script>
+    <script type="text/javascript" src="https://library.kiwix.org/skin/viewer.js?cacheid=5fc4badf" defer></script>
+    <script type="text/javascript" src="https://library.kiwix.org/skin/autoComplete/autoComplete.min.js?cacheid=1191aaaf"></script>
+    <script>
+      function getRootLocation() {
+        const p = location.pathname;
+        return p.slice(0, p.length - '/viewer'.length);
+      }
+
+      const root = getRootLocation();
+      const blankPageUrl = root + "/skin/blank.html?cacheid=6b1fa032";
+
+      if ( location.hash == '' ) {
+        location.href = root + '/';
+      }
+    </script>
+  </head>
+
+  <body style="margin:0" onload="setupViewer()">
+    <div class="kiwix" style="display:none" id="kiwixtoolbarwrapper">
+      <div id="kiwixtoolbar" class="ui-widget-header">
+        <div class="kiwix_centered">
+          <div class="kiwix_searchform">
+            <form class="kiwixsearch" method="GET" action="javascript:performSearch()" id="kiwixsearchform">
+              <label for="kiwixsearchbox">&#x1f50d;</label>
+              <input autocomplete="off" class="ui-autocomplete-input" id="kiwixsearchbox" name="pattern" type="text" title="Search '{{title}}'" aria-label="Search '{{title}}'">
+            </form>
+          </div>
+          <input type="checkbox" id="kiwix_button_show_toggle">
+          <label for="kiwix_button_show_toggle"><img src="https://library.kiwix.org/skin/caret.png?cacheid=22b942b4" alt=""></label>
+          <div class="kiwix_button_cont">
+            <a id="kiwix_serve_taskbar_library_button" title="Go to welcome page" aria-label="Go to welcome page" href="https://library.kiwix.org/"><button>&#x1f3e0;</button></a>
+            <span id="kiwix_serve_taskbar_book_ui_group">
+              <a id="kiwix_serve_taskbar_home_button"
+                 title="Go to the main page of the current book"
+                 aria-label="Go to the main page of the current book"
+                 onclick="gotoMainPageOfCurrentBook()"></a>
+              <a id="kiwix_serve_taskbar_random_button"
+                 title="Go to a randomly selected page"
+                 aria-label="Go to a randomly selected page"
+                 onclick="gotoRandomPage()">
+                <button>&#x1F3B2;</button>
+              </a>
+            </span>
+          </div>
+        </div>
+        <a onclick="window.modalUILanguageSelector.show()"
+           alt="Select UI language"
+           aria-label="Select UI language"
+           title="Select UI language">
+          <img id="uiLanguageSelectorButton"
+               src="https://library.kiwix.org/skin/langSelector.svg?cacheid=00b59961">
+        </a>
+      </div>
+    </div>
+
+    <iframe id="content_iframe"
+            referrerpolicy="no-referrer"
+            onload="on_content_load()"
+            src="https://library.kiwix.org/skin/blank.html?cacheid=6b1fa032" title="ZIM content" width="100%"
+            style="border:0px">
+    </iframe>
+
+    <script>
+    </script>
+  </body>
+</html>

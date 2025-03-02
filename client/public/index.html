@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="BookBot - Chat with your favorite books using AI"
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
@@ -24,7 +24,32 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>React App</title>
+    <title>BookBot - Chat with Books</title>
+    
+    <!-- Script to handle OAuth redirects -->
+    <script>
+      // Extract token from URL query parameters
+      function getTokenFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        if (token) {
+          // Store token in localStorage
+          localStorage.setItem('token', token);
+          
+          // Remove token from URL to prevent it from being shared or bookmarked
+          const url = new URL(window.location.href);
+          url.searchParams.delete('token');
+          window.history.replaceState({}, document.title, url.toString());
+          
+          // Reload the page to initialize the app with the new token
+          window.location.reload();
+        }
+      }
+      
+      // Run when the page loads
+      window.onload = getTokenFromUrl;
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
