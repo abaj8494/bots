@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450" width="300" height="450">
+  <!-- Background -->
+  <rect width="300" height="450" fill="#8D6A9F" />
+  
+  <!-- Border -->
+  <rect x="10" y="10" width="280" height="430" fill="none" stroke="#333" stroke-width="2" />
+  
+  <!-- Title -->
+  <text x="150" y="180" font-family="Georgia, serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">
+    Illiad
+  </text>
+  
+  <!-- Title (continued if long) -->
+  
+  
+  <!-- Author -->
+  <text x="150" y="270" font-family="Georgia, serif" font-size="18" text-anchor="middle" fill="#333">
+    by
+  </text>
+  <text x="150" y="300" font-family="Georgia, serif" font-size="20" text-anchor="middle" fill="#333">
+    Unknown Author
+  </text>
+</svg>
