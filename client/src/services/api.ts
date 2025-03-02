@@ -100,4 +100,52 @@ export const clearChatHistory = async (bookId: number) => {
   return response.data;
 };
 
+// New function to track embedding progress
+export const trackEmbeddingProgress = (
+  bookId: number, 
+  onProgress: (processedChunks: number, totalChunks: number) => void,
+  onError: (error: Error) => void
+): () => void => {
+  // Get token for authorization
+  const token = localStorage.getItem('token');
+  if (!token) {
+    onError(new Error('Authentication token not found'));
+    return () => {}; // Return empty cleanup function
+  }
+  
+  // Create EventSource for SSE connection
+  // Note: EventSource doesn't support custom headers directly
+  // We'll need to use a workaround or handle auth on the server differently
+  const eventSource = new EventSource(
+    `${API_URL}/api/chat/progress/${bookId}?token=${encodeURIComponent(token)}`,
+    { withCredentials: true }
+  );
+  
+  // Set up event handlers
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      onProgress(data.processedChunks, data.totalChunks);
+      
+      // If processing is complete, close the connection
+      if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+        eventSource.close();
+      }
+    } catch (error) {
+      console.error('Error parsing progress data:', error);
+    }
+  };
+  
+  eventSource.onerror = (error) => {
+    console.error('SSE connection error:', error);
+    onError(new Error('Error connecting to progress updates'));
+    eventSource.close();
+  };
+  
+  // Return a cleanup function
+  return () => {
+    eventSource.close();
+  };
+};
+
 export default api; 

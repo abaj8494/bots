@@ -28,8 +28,16 @@ export const auth = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.header('Authorization');
   console.log('Auth header:', authHeader);
   
-  // Extract token
-  const token = authHeader?.split(' ')[1]; // Bearer TOKEN
+  // Get token from query parameter (for SSE connections)
+  const queryToken = req.query.token as string | undefined;
+  
+  // Extract token from header or use query token
+  let token = authHeader?.split(' ')[1]; // Bearer TOKEN
+  
+  // If no token in header but exists in query params, use that
+  if (!token && queryToken) {
+    token = queryToken;
+  }
   
   // Check if no token
   if (!token) {

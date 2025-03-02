@@ -7,9 +7,17 @@ type EmbeddingsCache = Record<number, {
   chunks: string[];
   embeddings: number[][];
   isProcessing?: boolean;
+  progress?: {
+    processedChunks: number;
+    totalChunks: number;
+  };
 }>;
 
 const embeddingsCache: EmbeddingsCache = {};
+
+// Progress tracking event emitter
+import { EventEmitter } from 'events';
+export const embeddingsProgressEmitter = new EventEmitter();
 
 /**
  * Check if embeddings exist for a book without waiting for processing
@@ -19,6 +27,16 @@ export async function checkEmbeddingsExist(bookId: number): Promise<boolean> {
          !!embeddingsCache[bookId].chunks && 
          !!embeddingsCache[bookId].embeddings && 
          embeddingsCache[bookId].chunks.length > 0;
+}
+
+/**
+ * Get current embeddings progress for a book
+ */
+export function getEmbeddingsProgress(bookId: number): { processedChunks: number; totalChunks: number } | null {
+  if (!embeddingsCache[bookId] || !embeddingsCache[bookId].progress) {
+    return null;
+  }
+  return embeddingsCache[bookId].progress;
 }
 
 /**
@@ -91,7 +109,8 @@ export function chunkText(text: string, chunkSize: number = 1000, overlap: numbe
  */
 export async function generateEmbeddings(
   chunks: string[], 
-  userId?: number
+  userId?: number,
+  bookId?: number
 ): Promise<number[][]> {
   const openai = await getOpenAIClient(userId);
   const embeddings: number[][] = [];
@@ -104,12 +123,28 @@ export async function generateEmbeddings(
     console.log(`Generating embeddings for batch ${i/batchSize + 1} of ${Math.ceil(chunks.length/batchSize)}`);
     
     // Create embeddings for this batch
-    const batchPromises = batchChunks.map(async (chunk) => {
+    const batchPromises = batchChunks.map(async (chunk, index) => {
       const response = await openai.embeddings.create({
         model: "text-embedding-3-small",
         input: chunk,
         dimensions: 1536 // Standard for this model
       });
+      
+      // Update progress if bookId is provided
+      if (bookId && embeddingsCache[bookId]) {
+        const processedChunks = i + index + 1;
+        embeddingsCache[bookId].progress = {
+          processedChunks,
+          totalChunks: chunks.length
+        };
+        
+        // Emit progress event
+        embeddingsProgressEmitter.emit('progress', {
+          bookId,
+          processedChunks,
+          totalChunks: chunks.length
+        });
+      }
       
       return response.data[0].embedding;
     });
@@ -139,9 +174,15 @@ export async function processBookContent(
   
   // Mark as processing to avoid duplicate processing
   if (!embeddingsCache[bookId]) {
-    embeddingsCache[bookId] = { chunks: [], embeddings: [], isProcessing: true };
+    embeddingsCache[bookId] = { 
+      chunks: [], 
+      embeddings: [], 
+      isProcessing: true,
+      progress: { processedChunks: 0, totalChunks: 0 }
+    };
   } else {
     embeddingsCache[bookId].isProcessing = true;
+    embeddingsCache[bookId].progress = { processedChunks: 0, totalChunks: 0 };
   }
   
   try {
@@ -151,15 +192,39 @@ export async function processBookContent(
     const chunks = chunkText(content);
     console.log(`Book split into ${chunks.length} chunks`);
     
+    // Initialize progress
+    embeddingsCache[bookId].progress = {
+      processedChunks: 0,
+      totalChunks: chunks.length
+    };
+    
+    // Emit initial progress event
+    embeddingsProgressEmitter.emit('progress', {
+      bookId,
+      processedChunks: 0,
+      totalChunks: chunks.length
+    });
+    
     // Generate embeddings
-    const embeddings = await generateEmbeddings(chunks, userId);
+    const embeddings = await generateEmbeddings(chunks, userId, bookId);
     
     // Cache the results
     embeddingsCache[bookId] = {
       chunks,
       embeddings,
-      isProcessing: false
+      isProcessing: false,
+      progress: {
+        processedChunks: chunks.length,
+        totalChunks: chunks.length
+      }
     };
+    
+    // Emit completion event
+    embeddingsProgressEmitter.emit('progress', {
+      bookId,
+      processedChunks: chunks.length,
+      totalChunks: chunks.length
+    });
     
     console.log(`Successfully processed and cached embeddings for book ${bookId}`);
   } catch (error) {

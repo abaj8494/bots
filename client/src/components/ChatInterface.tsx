@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getBooks, sendChatMessage } from '../services/api';
+import { getBooks, sendChatMessage, trackEmbeddingProgress } from '../services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import './ChatInterface.css';
+import LoadingCircle from './LoadingCircle';
 
 interface Message {
   id: number;
@@ -25,7 +26,12 @@ const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingChunks, setIsProcessingChunks] = useState(false);
+  const [chunkProgress, setChunkProgress] = useState({ processed: 0, total: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Ref to hold the cleanup function for event source
+  const progressCleanupRef = useRef<(() => void) | null>(null);
 
   // Fetch books on component mount
   useEffect(() => {
@@ -139,43 +145,73 @@ const ChatInterface: React.FC = () => {
       // Use the API service to send chat message
       const response = await sendChatMessage(selectedBook.id, inputMessage, chatHistory);
       
+      // If response indicates first-time processing, start tracking progress
+      if (response.response && response.response.includes("processing this book for the first time")) {
+        setIsProcessingChunks(true);
+        setChunkProgress({ processed: 0, total: 0 });
+        
+        // Start tracking progress
+        if (progressCleanupRef.current) {
+          progressCleanupRef.current(); // Clean up any existing connection
+        }
+        
+        progressCleanupRef.current = trackEmbeddingProgress(
+          selectedBook.id,
+          (processedChunks, totalChunks) => {
+            setChunkProgress({ 
+              processed: processedChunks, 
+              total: totalChunks 
+            });
+            
+            // If processing is complete, hide the loading circle
+            if (processedChunks === totalChunks && totalChunks > 0) {
+              setIsProcessingChunks(false);
+            }
+          },
+          (error) => {
+            console.error('Error tracking progress:', error);
+            setIsProcessingChunks(false);
+          }
+        );
+      }
+      
       // Ensure the response is properly formatted for Markdown
       const processedResponse = response.response || "I couldn't generate a response. Please try again.";
       
-      console.log('Received response:', processedResponse);
-      // Log the response to see if it contains Markdown syntax
-      console.log('Response contains markdown headings:', processedResponse.includes('#'));
-      console.log('Response contains markdown bold:', processedResponse.includes('**'));
-      console.log('Response contains markdown italic:', processedResponse.includes('*'));
-      console.log('Response contains markdown blockquote:', processedResponse.includes('>'));
+      // Add AI response to messages
+      const aiMessage: Message = {
+        id: Date.now() + 1,
+        text: processedResponse,
+        isUser: false,
+        timestamp: new Date()
+      };
       
-      // Add response to messages
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          text: processedResponse,
-          isUser: false,
-          timestamp: new Date()
-        }
-      ]);
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       
       // Add error message
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          text: "Sorry, I couldn't process your message. Please try again later.",
-          isUser: false,
-          timestamp: new Date()
-        }
-      ]);
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        text: "Sorry, there was an error processing your request. Please try again.",
+        isUser: false,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Clean up event source on unmount
+  useEffect(() => {
+    return () => {
+      if (progressCleanupRef.current) {
+        progressCleanupRef.current();
+      }
+    };
+  }, []);
 
   return (
     <div className="chat-container">
@@ -337,6 +373,14 @@ const ChatInterface: React.FC = () => {
           Send
         </button>
       </form>
+      
+      {/* Add the loading circle for chunk processing */}
+      {isProcessingChunks && (
+        <LoadingCircle 
+          processedChunks={chunkProgress.processed} 
+          totalChunks={chunkProgress.total} 
+        />
+      )}
     </div>
   );
 };

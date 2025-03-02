@@ -4,8 +4,56 @@ import { auth } from '../middleware/auth';
 import { getBookById } from '../models/Book';
 import { saveChatMessage, getChatHistoryByUserAndBook, deleteChatHistory } from '../models/Chat';
 import { generateChatResponse, ChatHistoryMessage } from '../utils/openai';
+import { 
+  embeddingsProgressEmitter, 
+  getEmbeddingsProgress 
+} from '../utils/embeddings';
 
 const router: Router = express.Router();
+
+// @route   GET api/chat/progress/:bookId
+// @desc    Stream embedding progress updates for a book
+// @access  Private
+router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
+  const bookId = parseInt(req.params.bookId);
+  
+  if (!req.user || !req.user.id) {
+    res.status(401).json({ msg: 'User not authenticated' });
+    return;
+  }
+  
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  // Send initial progress if available
+  const initialProgress = getEmbeddingsProgress(bookId);
+  if (initialProgress) {
+    res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
+  } else {
+    res.write(`data: ${JSON.stringify({ processedChunks: 0, totalChunks: 0 })}\n\n`);
+  }
+  
+  // Function to handle progress updates
+  const progressHandler = (data: { bookId: number; processedChunks: number; totalChunks: number }) => {
+    if (data.bookId === bookId) {
+      res.write(`data: ${JSON.stringify({
+        processedChunks: data.processedChunks,
+        totalChunks: data.totalChunks
+      })}\n\n`);
+    }
+  };
+  
+  // Register event listener
+  embeddingsProgressEmitter.on('progress', progressHandler);
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    embeddingsProgressEmitter.off('progress', progressHandler);
+    res.end();
+  });
+});
 
 // @route   POST api/chat/:bookId
 // @desc    Send a message to chat with a book
