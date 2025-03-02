@@ -30,4 +30,4 @@ yarn-error.log*
 
 # OS files
 .DS_Store 
-google-auth.json
+google-auth.jsongoogle-auth.json
