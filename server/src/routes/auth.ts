@@ -186,7 +186,7 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { session: false }),
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   (req: Request, res: Response) => {
     // Create JWT token
     if (!req.user) {

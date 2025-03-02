@@ -3,8 +3,14 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { getUserByEmail, createUser, updateUserVerificationStatus } from '../models/User';
 import dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 dotenv.config();
+
+// Import Google credentials from the JSON file
+const googleCredentialsPath = path.join(__dirname, '../../..', 'google-auth.json');
+const googleCredentials = JSON.parse(fs.readFileSync(googleCredentialsPath, 'utf8')).web;
 
 // Configure Passport strategies
 export const configurePassport = () => {
@@ -12,9 +18,9 @@ export const configurePassport = () => {
   passport.use(
     new GoogleStrategy(
       {
-        clientID: process.env.GOOGLE_CLIENT_ID as string,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-        callbackURL: `${process.env.SERVER_URL}/api/auth/google/callback`,
+        clientID: googleCredentials.client_id,
+        clientSecret: googleCredentials.client_secret,
+        callbackURL: googleCredentials.redirect_uris[0],
       },
       async (accessToken, refreshToken, profile, done) => {
         try {

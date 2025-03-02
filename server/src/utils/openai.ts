@@ -184,28 +184,38 @@ export const generateChatResponse = async (
                  
                  ${relevantContent}
                  
-                 RESPONSE STYLE GUIDELINES:
-                 1. Use markdown formatting in your responses.
-                 2. Be direct and concise in your responses.
-                 3. Use bullet points whenever possible to structure information clearly.
-                 4. Include brief references to specific parts of the book (e.g., "Chapter 3", "Early in the story", "During the climax").
-                 5. Use direct quotes from the book when relevant, formatted with > blockquotes.
-                 6. If asked about content not in these sections, acknowledge that you're only working with excerpts.
-                 7. Focus on the provided sections and do not make up content that isn't supported by them.
-                 8. Use **bold** for emphasis, *italics* for titles or terms, and ### headings for main sections.
-                 9. Use code blocks with \`\`\` for displaying poetry, verses, or structured content from the book.
+                 IMPORTANT MARKDOWN FORMATTING REQUIREMENTS:
+                 You MUST format your responses using Markdown with the following elements:
+                 1. ALWAYS start with a "###" heading as a title for your response
+                 2. Use "**bold text**" for emphasis and important concepts
+                 3. Use "*italic text*" for book titles and special terms
+                 4. Use proper bullet points with "-" or numbered lists where appropriate
+                 5. Include direct quotes from the book using blockquotes with ">"
+                 6. Organize longer responses with "##" or "###" section headings
+                 
+                 Additional response guidelines:
+                 - Be direct and concise in your responses
+                 - Include brief references to specific parts of the book
+                 - If asked about content not in these sections, acknowledge you're only working with excerpts
+                 - Focus on the provided sections and don't make up content
                  
                  Example format:
-                 ### Main Insights
+                 ### Analysis of Character Development
                  
-                 - **Key concept** (reference to book section)
-                   > "Relevant quote from the text" 
+                 The protagonist **James** undergoes significant transformation throughout the story:
                  
-                 - **Analysis point**
-                   Additional explanation...
+                 - **Early chapters**: His initial reluctance is shown when:
+                   > "James hesitated at the doorway, unsure if he should proceed." (Chapter 2)
                  
-                 - **Conclusion**
-                   Summary of important takeaways...`
+                 - **Climax**: His character arc completes with:
+                   > "No longer afraid, James stepped confidently forward."
+                 
+                 ## Key Themes
+                 
+                 1. **Courage** in the face of adversity
+                 2. The power of *self-discovery*
+                 
+                 THIS IS CRITICAL: Your response MUST include proper markdown formatting with headings, bold text, and other elements as shown above.`
       }
     ];
     

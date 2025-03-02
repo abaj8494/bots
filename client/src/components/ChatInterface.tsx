@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getBooks, sendChatMessage } from '../services/api';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './ChatInterface.css';
 
 interface Message {
@@ -138,12 +139,22 @@ const ChatInterface: React.FC = () => {
       // Use the API service to send chat message
       const response = await sendChatMessage(selectedBook.id, inputMessage, chatHistory);
       
+      // Ensure the response is properly formatted for Markdown
+      const processedResponse = response.response || "I couldn't generate a response. Please try again.";
+      
+      console.log('Received response:', processedResponse);
+      // Log the response to see if it contains Markdown syntax
+      console.log('Response contains markdown headings:', processedResponse.includes('#'));
+      console.log('Response contains markdown bold:', processedResponse.includes('**'));
+      console.log('Response contains markdown italic:', processedResponse.includes('*'));
+      console.log('Response contains markdown blockquote:', processedResponse.includes('>'));
+      
       // Add response to messages
       setMessages(prev => [
         ...prev,
         {
           id: Date.now() + 1,
-          text: response.response || "I couldn't generate a response. Please try again.",
+          text: processedResponse,
           isUser: false,
           timestamp: new Date()
         }
@@ -208,7 +219,93 @@ const ChatInterface: React.FC = () => {
               {message.isUser ? (
                 message.text
               ) : (
-                <ReactMarkdown>{message.text}</ReactMarkdown>
+                <>
+                  {/* Debug only: Show the raw markdown */}
+                  {/* <pre style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    fontFamily: 'monospace', 
+                    fontSize: '12px', 
+                    padding: '8px', 
+                    background: '#f5f5f5', 
+                    borderRadius: '4px', 
+                    marginBottom: '8px', 
+                    display: 'none'
+                  }}>
+                    {message.text}
+                  </pre> */}
+                  
+                  <div className="markdown-content">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]} 
+                      components={{
+                        h1: ({node, ...props}) => <h1 style={{
+                          fontSize: '1.6em', 
+                          fontWeight: 'bold', 
+                          marginTop: '0.7em', 
+                          marginBottom: '0.5em', 
+                          display: 'block',
+                          color: '#212529'
+                        }} {...props} />,
+                        h2: ({node, ...props}) => <h2 style={{
+                          fontSize: '1.4em', 
+                          fontWeight: 'bold', 
+                          marginTop: '0.7em', 
+                          marginBottom: '0.5em', 
+                          display: 'block',
+                          color: '#212529'
+                        }} {...props} />,
+                        h3: ({node, ...props}) => <h3 style={{
+                          fontSize: '1.25em', 
+                          fontWeight: 'bold', 
+                          marginTop: '0.7em', 
+                          marginBottom: '0.5em', 
+                          display: 'block',
+                          color: '#212529'
+                        }} {...props} />,
+                        strong: ({node, ...props}) => <strong style={{
+                          fontWeight: 'bold', 
+                          color: '#212529',
+                          display: 'inline'
+                        }} {...props} />,
+                        em: ({node, ...props}) => <em style={{
+                          fontStyle: 'italic',
+                          display: 'inline'
+                        }} {...props} />,
+                        p: ({node, ...props}) => <p style={{
+                          margin: '0.5em 0 0.7em',
+                          lineHeight: '1.5',
+                          display: 'block'
+                        }} {...props} />,
+                        ul: ({node, ...props}) => <ul style={{
+                          paddingLeft: '20px', 
+                          margin: '0.7em 0',
+                          display: 'block'
+                        }} {...props} />,
+                        ol: ({node, ...props}) => <ol style={{
+                          paddingLeft: '20px', 
+                          margin: '0.7em 0',
+                          display: 'block'
+                        }} {...props} />,
+                        li: ({node, ...props}) => <li style={{
+                          marginBottom: '0.35em', 
+                          display: 'list-item'
+                        }} {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote style={{
+                          borderLeft: '4px solid #6c757d',
+                          padding: '0.5em 0.8em',
+                          margin: '0.7em 0',
+                          color: '#495057',
+                          fontStyle: 'italic',
+                          backgroundColor: 'rgba(0,0,0,0.03)',
+                          borderRadius: '0 4px 4px 0',
+                          display: 'block'
+                        }} {...props} />
+                      }}
+                    >
+                      {message.text}
+                    </ReactMarkdown>
+                  </div>
+                </>
               )}
             </div>
             <div className="message-timestamp">
