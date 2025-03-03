@@ -303,18 +303,15 @@ const ChatInterface: React.FC = () => {
         }
       });
       
-      // Update the temp message with the actual response
-      setMessages(prev => prev.map(msg => 
-        msg.id === tempMessage.id 
-          ? {
-              ...msg,
-              id: response.data.id || msg.id,
-              text: response.data.response || response.data.message || msg.text,
-              isUser: msg.isUser,
-              timestamp: msg.timestamp
-            } 
-          : msg
-      ));
+      // Add the bot's response as a new message, not by updating the user's message
+      const botMessage: Message = {
+        id: response.data.id || Date.now(),
+        text: response.data.response || response.data.message || "Sorry, I didn't receive a proper response.",
+        isUser: false,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, botMessage]);
       
       // Reset query limit state
       setQueryLimitExceeded(false);

@@ -17,8 +17,12 @@
   </rdf:RDF>
  </metadata>
  <defs>
+  <clipPath id="circleClip">
+    <circle cx="138.6" cy="138.6" r="138.6"/>
+  </clipPath>
   <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
+ <g clip-path="url(#circleClip)">
  <g id="figure_1">
   <g id="patch_1">
    <path d="M 0 277.2 
@@ -8761,6 +8765,7 @@ L 276.870413 67.914
 z
 " clip-path="url(#pb95e6c81c3)" style="fill: #f2f27d"/>
    </g>
+  </g>
   </g>
  </g>
  <defs>

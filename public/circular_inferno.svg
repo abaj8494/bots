@@ -17,8 +17,8 @@
   </rdf:RDF>
  </metadata>
  <defs>
- <clipPath id="circleClip">
-    <circle cx="138.6" cy="138.6" r="138.6" />
+  <clipPath id="circleClip">
+    <circle cx="138.6" cy="138.6" r="138.6"/>
   </clipPath>
   <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
@@ -8766,15 +8766,11 @@ z
 " clip-path="url(#pb95e6c81c3)" style="fill: #f2f27d"/>
    </g>
   </g>
+  </g>
  </g>
  <defs>
- <clipPath id="circleClip">
-    <circle cx="138.6" cy="138.6" r="138.6" />
-  </clipPath>
   <clipPath id="pb95e6c81c3">
    <rect x="0" y="0" width="277.2" height="277.2"/>
   </clipPath>
  </defs>
- <g clip-path="url(#circleClip)">
-</g>
 </svg>

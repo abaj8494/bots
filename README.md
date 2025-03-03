@@ -17,11 +17,13 @@
 5. Chat with the book
 
 ## TODOs
+- [ ] add harrison bergeron
+- [ ] add bhagvad gita
 - [X] add a cap of 20 queries per book per day
 - [X] add icon as real component of complex logarithm function
 - [ ] fix unknown authors
 - [ ] recreate svg covers as nfts
-- [ ] add pricing tier option of 2.99 aud for when user surpasses 20 queries / day
+- [X] add pricing tier option of 2.99 aud for when user surpasses 20 queries / day
    - with 2.99 aud they may request up to 300 queries per day
 - [ ] engineer fine-tuned llm to be an expert on book contents
   - offer for 4.99 aud/month STUDY tier
