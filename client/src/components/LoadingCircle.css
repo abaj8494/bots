@@ -22,6 +22,9 @@
   width: 100px;
   height: 100px;
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .loading-circle__background {
@@ -34,7 +37,6 @@
   stroke: #3498db;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s ease;
-  animation: pulse 2s infinite;
 }
 
 .loading-circle__percentage {
@@ -45,7 +47,7 @@
   font-size: 20px;
   font-weight: bold;
   color: white;
-  animation: fadeInOut 2s infinite;
+  z-index: 2;
 }
 
 .loading-circle__text {
@@ -54,26 +56,21 @@
   font-size: 14px;
   line-height: 1.5;
   max-width: 100%;
-  animation: fadeInOut 3s infinite;
   white-space: pre-wrap;
+  margin-top: 10px;
 }
 
 /* Animations */
+/* Removing pulse animation
 @keyframes pulse {
-  0% {
-    stroke: #3498db;
-    stroke-width: 5;
-  }
-  50% {
-    stroke: #2ecc71;
-    stroke-width: 6;
-  }
-  100% {
+  0%, 50%, 100% {
     stroke: #3498db;
     stroke-width: 5;
   }
 }
+*/
 
+/* Removing fadeInOut animation 
 @keyframes fadeInOut {
   0%, 100% {
     opacity: 0.8;
@@ -82,6 +79,7 @@
     opacity: 1;
   }
 }
+*/
 
 @keyframes fadeIn {
   from { opacity: 0; }

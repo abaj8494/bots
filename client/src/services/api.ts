@@ -102,10 +102,16 @@ export const clearChatHistory = async (bookId: number) => {
 
 // New function to track embedding progress
 export const trackEmbeddingProgress = (
-  bookId: number, 
-  onProgress: (processedChunks: number, totalChunks: number) => void,
-  onError: (error: Error) => void
-): () => void => {
+  bookId: number,
+  onProgress: (
+    processedChunks: number, 
+    totalChunks: number, 
+    exactWordCount?: number, 
+    exactTokenCount?: number
+  ) => void,
+  onError: (error: Error) => void,
+  onComplete?: () => void
+): (() => void) => {
   // Get token for authorization
   const token = localStorage.getItem('token');
   if (!token) {
@@ -122,6 +128,12 @@ export const trackEmbeddingProgress = (
   // Try creating the EventSource
   let eventSource: EventSource;
   
+  // Add missing variables
+  let lastProcessed = 0;
+  let lastTotal = 0;
+  let lastWordCount = 0;
+  let lastTokenCount = 0;
+  
   try {
     // Create with withCredentials set to true
     eventSource = new EventSource(eventSourceUrl, { withCredentials: true });
@@ -133,9 +145,6 @@ export const trackEmbeddingProgress = (
     let receivedValidProgress = false;
     // Flag to track if we're expecting the connection to close
     let expectingClose = false;
-    // Last progress values for reconnection logic
-    let lastProcessed = 0;
-    let lastTotal = 0;
     
     // Set up event handlers
     eventSource.onopen = () => {
@@ -147,15 +156,19 @@ export const trackEmbeddingProgress = (
     eventSource.onmessage = (event) => {
       try {
         console.log('Progress update received:', event.data);
+        
+        // Parse the progress data
         const data = JSON.parse(event.data);
         
-        // Validate data format
-        if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
+        // Check if the progress data is valid
+        if (typeof data === 'object' && 'processedChunks' in data && 'totalChunks' in data) {
           console.log(`Progress: ${data.processedChunks}/${data.totalChunks}`);
           
-          // Store last values
+          // Store the last values for potential reconnection
           lastProcessed = data.processedChunks;
           lastTotal = data.totalChunks;
+          lastWordCount = data.exactWordCount || 0;
+          lastTokenCount = data.exactTokenCount || 0;
           
           // Set receivedValidProgress to true when we get actual progress data
           if (data.totalChunks > 0) {
@@ -163,7 +176,12 @@ export const trackEmbeddingProgress = (
           }
           
           // Call the onProgress callback with the current progress
-          onProgress(data.processedChunks, data.totalChunks);
+          onProgress(
+            data.processedChunks, 
+            data.totalChunks, 
+            data.exactWordCount || 0, 
+            data.exactTokenCount || 0
+          );
           
           // If processing is complete, close the connection cleanly
           if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
@@ -201,9 +219,17 @@ export const trackEmbeddingProgress = (
           .then(response => response.json())
           .then(data => {
             console.log('Fallback progress data:', data);
-            if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
-              onProgress(data.processedChunks, data.totalChunks);
-            }
+            // Update last values
+            lastProcessed = data.processedChunks;
+            lastTotal = data.totalChunks;
+            lastWordCount = data.exactWordCount || 0;
+            lastTokenCount = data.exactTokenCount || 0;
+            onProgress(
+              data.processedChunks, 
+              data.totalChunks, 
+              data.exactWordCount || 0, 
+              data.exactTokenCount || 0
+            );
           })
           .catch(err => console.error('Fallback request failed:', err));
         } catch (fallbackError) {
@@ -222,7 +248,7 @@ export const trackEmbeddingProgress = (
           eventSource.close();
           
           // Send one final progress update to show 100% completion
-          onProgress(lastTotal, lastTotal);
+          onProgress(lastTotal, lastTotal, lastWordCount, lastTokenCount);
           return;
         }
       }
@@ -272,7 +298,7 @@ export const trackEmbeddingProgress = (
           console.log('Poll progress data:', data);
           
           if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
-            onProgress(data.processedChunks, data.totalChunks);
+            onProgress(data.processedChunks, data.totalChunks, data.exactWordCount || 0, data.exactTokenCount || 0);
             
             // If processing is complete, stop polling
             if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {

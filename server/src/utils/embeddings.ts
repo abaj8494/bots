@@ -10,6 +10,8 @@ type EmbeddingsCache = Record<number, {
   progress?: {
     processedChunks: number;
     totalChunks: number;
+    exactWordCount?: number;
+    exactTokenCount?: number;
   };
 }>;
 
@@ -32,11 +34,62 @@ export async function checkEmbeddingsExist(bookId: number): Promise<boolean> {
 /**
  * Get current embeddings progress for a book
  */
-export function getEmbeddingsProgress(bookId: number): { processedChunks: number; totalChunks: number } | null {
-  if (!embeddingsCache[bookId] || !embeddingsCache[bookId].progress) {
+export function getEmbeddingsProgress(bookId: number): { 
+  processedChunks: number; 
+  totalChunks: number;
+  exactWordCount: number;
+  exactTokenCount: number;
+} | null {
+  if (!embeddingsCache[bookId]) {
+    console.log(`No cache entry found for book ${bookId} in getEmbeddingsProgress`);
     return null;
   }
-  return embeddingsCache[bookId].progress;
+  
+  if (!embeddingsCache[bookId].progress) {
+    console.log(`Cache entry exists for book ${bookId} but no progress object found`);
+    return null;
+  }
+  
+  // Get the basic progress from the cache
+  const progress = embeddingsCache[bookId].progress;
+  console.log(`Raw progress data for book ${bookId}:`, JSON.stringify(progress));
+  
+  // Calculate word and token counts if not already present
+  const wordCount = progress.exactWordCount || calculateWordCount(bookId);
+  const tokenCount = progress.exactTokenCount || Math.round(wordCount * 0.75); // Approximate tokens as 75% of words
+  
+  console.log(`Returning progress for book ${bookId}: processed=${progress.processedChunks}, total=${progress.totalChunks}, words=${wordCount}, tokens=${tokenCount}`);
+  
+  return {
+    ...progress,
+    exactWordCount: wordCount,
+    exactTokenCount: tokenCount
+  };
+}
+
+/**
+ * Calculate the word count for a book's content
+ */
+function calculateWordCount(bookId: number): number {
+  if (!embeddingsCache[bookId] || !embeddingsCache[bookId].chunks) {
+    console.log(`No chunks found for book ${bookId} to calculate word count`);
+    return 0;
+  }
+  
+  // Calculate word count based on chunks
+  const allText = embeddingsCache[bookId].chunks.join(' ');
+  console.log(`Calculating word count for book ${bookId} with ${embeddingsCache[bookId].chunks.length} chunks`);
+  const wordCount = allText.split(/\s+/).filter(word => word.length > 0).length;
+  console.log(`Book ${bookId} has ${wordCount} words`);
+  
+  // Cache the word count in the progress object
+  if (embeddingsCache[bookId].progress) {
+    embeddingsCache[bookId].progress.exactWordCount = wordCount;
+    embeddingsCache[bookId].progress.exactTokenCount = Math.round(wordCount * 0.75);
+    console.log(`Cached word count (${wordCount}) and token count (${Math.round(wordCount * 0.75)}) for book ${bookId}`);
+  }
+  
+  return wordCount;
 }
 
 /**
@@ -141,8 +194,10 @@ export async function generateEmbeddings(
         // Emit progress event
         embeddingsProgressEmitter.emit('progress', {
           bookId,
-          processedChunks,
-          totalChunks: chunks.length
+          processedChunks: processedChunks,
+          totalChunks: chunks.length,
+          exactWordCount: embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId),
+          exactTokenCount: embeddingsCache[bookId].progress?.exactTokenCount || Math.round((embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId)) * 0.75)
         });
       }
       
@@ -175,8 +230,10 @@ export async function processBookContent(
     // Even with cached embeddings, emit a progress event to update UI
     embeddingsProgressEmitter.emit('progress', {
       bookId,
-      processedChunks: embeddingsCache[bookId].chunks.length,
-      totalChunks: embeddingsCache[bookId].chunks.length
+      processedChunks: 1,
+      totalChunks: 1,
+      exactWordCount: embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId),
+      exactTokenCount: embeddingsCache[bookId].progress?.exactTokenCount || Math.round((embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId)) * 0.75)
     });
     
     return;
@@ -184,17 +241,43 @@ export async function processBookContent(
   
   // Mark as processing to avoid duplicate processing
   if (!embeddingsCache[bookId]) {
-    console.log(`Creating new embedding cache entry for book ${bookId}`);
-    embeddingsCache[bookId] = { 
-      chunks: [], 
-      embeddings: [], 
+    console.log(`Initializing embeddings cache for book ${bookId}`);
+    // Calculate approximate word and token counts from the original content
+    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+    const tokenCount = Math.round(wordCount * 0.75);
+    console.log(`Book ${bookId} has approximately ${wordCount} words and ${tokenCount} tokens`);
+    
+    embeddingsCache[bookId] = {
+      chunks: [],
+      embeddings: [],
       isProcessing: true,
-      progress: { processedChunks: 0, totalChunks: 0 }
+      progress: { 
+        processedChunks: 0, 
+        totalChunks: 0,
+        exactWordCount: wordCount,
+        exactTokenCount: tokenCount
+      }
     };
   } else {
     console.log(`Updating existing embedding cache entry for book ${bookId}`);
     embeddingsCache[bookId].isProcessing = true;
-    embeddingsCache[bookId].progress = { processedChunks: 0, totalChunks: 0 };
+    
+    // Preserve existing word and token counts if available, or calculate them
+    const existingWordCount = embeddingsCache[bookId].progress?.exactWordCount;
+    const existingTokenCount = embeddingsCache[bookId].progress?.exactTokenCount;
+    
+    // Calculate new counts if they don't exist
+    const wordCount = existingWordCount || content.split(/\s+/).filter(word => word.length > 0).length;
+    const tokenCount = existingTokenCount || Math.round(wordCount * 0.75);
+    
+    console.log(`Using word count: ${wordCount}, token count: ${tokenCount} for book ${bookId}`);
+    
+    embeddingsCache[bookId].progress = { 
+      processedChunks: 0, 
+      totalChunks: 0,
+      exactWordCount: wordCount,
+      exactTokenCount: tokenCount
+    };
   }
   
   try {
@@ -208,19 +291,28 @@ export async function processBookContent(
     
     // Split content into chunks
     const chunks = chunkText(content);
-    console.log(`Book ${bookId} split into ${chunks.length} chunks`);
+    console.log(`Chunked book ${bookId} into ${chunks.length} chunks`);
+    
+    // Calculate approximate word and token counts from the original content
+    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+    const tokenCount = Math.round(wordCount * 0.75);
+    console.log(`Book ${bookId} has approximately ${wordCount} words and ${tokenCount} tokens`);
     
     // Initialize progress
     embeddingsCache[bookId].progress = {
       processedChunks: 0,
-      totalChunks: chunks.length
+      totalChunks: chunks.length,
+      exactWordCount: wordCount,
+      exactTokenCount: tokenCount
     };
     
     // Emit initial progress event
     embeddingsProgressEmitter.emit('progress', {
       bookId,
       processedChunks: 0,
-      totalChunks: chunks.length
+      totalChunks: chunks.length,
+      exactWordCount: wordCount,
+      exactTokenCount: tokenCount
     });
     
     // Generate embeddings
@@ -233,7 +325,9 @@ export async function processBookContent(
       isProcessing: false,
       progress: {
         processedChunks: chunks.length,
-        totalChunks: chunks.length
+        totalChunks: chunks.length,
+        exactWordCount: wordCount,
+        exactTokenCount: tokenCount
       }
     };
     
@@ -241,10 +335,12 @@ export async function processBookContent(
     embeddingsProgressEmitter.emit('progress', {
       bookId,
       processedChunks: chunks.length,
-      totalChunks: chunks.length
+      totalChunks: chunks.length,
+      exactWordCount: wordCount,
+      exactTokenCount: tokenCount
     });
     
-    console.log(`Successfully processed and cached embeddings for book ${bookId}`);
+    console.log(`Processing complete for book ${bookId} - final word count: ${wordCount}, token count: ${tokenCount}`);
   } catch (error) {
     console.error(`Error processing embeddings for book ${bookId}:`, error);
     // Make sure to mark as not processing even if there's an error
@@ -254,9 +350,10 @@ export async function processBookContent(
       // Emit an error progress event
       embeddingsProgressEmitter.emit('progress', {
         bookId,
-        processedChunks: 0,
-        totalChunks: 1,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        processedChunks: -1,
+        totalChunks: -1,
+        exactWordCount: embeddingsCache[bookId]?.progress?.exactWordCount || 0,
+        exactTokenCount: embeddingsCache[bookId]?.progress?.exactTokenCount || 0
       });
     }
     throw error;
@@ -336,4 +433,4 @@ export function clearEmbeddingsCache(bookId?: number): void {
     });
     console.log('Cleared all embeddings from cache');
   }
-} 
+}

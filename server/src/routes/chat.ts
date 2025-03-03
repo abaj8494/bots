@@ -38,15 +38,31 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
   if (initialProgress) {
     res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
   } else {
-    res.write(`data: ${JSON.stringify({ processedChunks: 0, totalChunks: 0 })}\n\n`);
+    res.write(`data: ${JSON.stringify({ 
+      processedChunks: 0, 
+      totalChunks: 0, 
+      exactWordCount: 0, 
+      exactTokenCount: 0 
+    })}\n\n`);
   }
   
   // Function to handle progress updates
-  const progressHandler = (data: { bookId: number; processedChunks: number; totalChunks: number }) => {
+  const progressHandler = (data: { 
+    bookId: number; 
+    processedChunks: number; 
+    totalChunks: number;
+    exactWordCount?: number;
+    exactTokenCount?: number;
+    error?: string;
+  }) => {
     if (data.bookId === bookId) {
+      // Send SSE event with progress data
       res.write(`data: ${JSON.stringify({
         processedChunks: data.processedChunks,
-        totalChunks: data.totalChunks
+        totalChunks: data.totalChunks,
+        exactWordCount: data.exactWordCount || 0,
+        exactTokenCount: data.exactTokenCount || 0,
+        error: data.error
       })}\n\n`);
     }
   };

@@ -38,9 +38,16 @@ const ChatInterface: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // For tracking chunk processing progress
+  // For progress tracking and loading states
   const [isProcessingChunks, setIsProcessingChunks] = useState(false);
-  const [chunkProgress, setChunkProgress] = useState({ processed: 0, total: 0 });
+  const [chunkProgress, setChunkProgress] = useState({ 
+    processed: 0, 
+    total: 0, 
+    wordCount: 0, 
+    tokenCount: 0 
+  });
+  const [loadingText, setLoadingText] = useState('Processing book...');
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const progressCleanupRef = useRef<() => void>(() => {});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -72,10 +79,11 @@ const ChatInterface: React.FC = () => {
           const book = data.find((book: Book) => book.id === bookIdNum);
           if (book) {
             setSelectedBook(book);
+            // Instead of immediately showing a welcome message, just show a loading message
             setMessages([
               {
                 id: 1,
-                text: `You're now chatting with "${book.title}" by ${book.author}. Ask me anything about this book!`,
+                text: `Loading "${book.title}" by ${book.author}...`,
                 isUser: false,
                 timestamp: new Date()
               }
@@ -84,7 +92,7 @@ const ChatInterface: React.FC = () => {
             // Check if we need to process embeddings by making a test message request
             console.log('Checking if embeddings need to be processed...');
             setIsProcessingChunks(true); // Start showing loading immediately
-            setChunkProgress({ processed: 0, total: 1 }); // Start with indefinite progress
+            setChunkProgress({ processed: 0, total: 1, wordCount: 0, tokenCount: 0 }); // Start with indefinite progress
             
             // Send an initial message to trigger embedding process if needed
             sendChatMessage(bookIdNum, "Are you ready to discuss this book?", [])
@@ -101,7 +109,7 @@ const ChatInterface: React.FC = () => {
                   
                   progressCleanupRef.current = trackEmbeddingProgress(
                     bookIdNum,
-                    (processedChunks, totalChunks) => {
+                    (processedChunks, totalChunks, wordCount, tokenCount) => {
                       console.log(`Processing chunks: ${processedChunks}/${totalChunks}`);
                       
                       // Only update progress if the total is non-zero 
@@ -109,7 +117,9 @@ const ChatInterface: React.FC = () => {
                       if (totalChunks > 0) {
                         setChunkProgress({ 
                           processed: processedChunks, 
-                          total: totalChunks 
+                          total: totalChunks,
+                          wordCount: wordCount || 0,
+                          tokenCount: tokenCount || 0
                         });
                       }
                       
@@ -155,9 +165,11 @@ const ChatInterface: React.FC = () => {
                     }
                   );
                 } else {
-                  // Book is already processed
+                  // Book is already processed - now show the welcome message
                   console.log('Book is already processed');
                   setIsProcessingChunks(false);
+                  // Update the welcome message now that processing is complete
+                  updateWelcomeMessage(`I have loaded "${book.title}" by ${book.author} into our context window. Whilst I am not an expert on this text, I do have a more local memory of the tokens which compose it. Ask me a question and I shall respond with Markdown :P`);
                 }
               })
               .catch(error => {
@@ -266,7 +278,7 @@ const ChatInterface: React.FC = () => {
       // If response indicates first-time processing, start tracking progress
       if (response.response && response.response.includes("processing this book for the first time")) {
         setIsProcessingChunks(true);
-        setChunkProgress({ processed: 0, total: 0 });
+        setChunkProgress({ processed: 0, total: 0, wordCount: 0, tokenCount: 0 });
         
         // Start tracking progress
         if (progressCleanupRef.current) {
@@ -275,13 +287,15 @@ const ChatInterface: React.FC = () => {
         
         progressCleanupRef.current = trackEmbeddingProgress(
           selectedBook.id,
-          (processedChunks, totalChunks) => {
+          (processedChunks, totalChunks, wordCount, tokenCount) => {
             // Only update progress if the total is non-zero 
             // This prevents showing incorrect batch counts during initialization
             if (totalChunks > 0) {
               setChunkProgress({ 
                 processed: processedChunks, 
-                total: totalChunks 
+                total: totalChunks,
+                wordCount: wordCount || 0,
+                tokenCount: tokenCount || 0
               });
             }
             
@@ -404,7 +418,7 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>BookBot Chat</h2>
+        <h2>Chat with Aayush's BookBot</h2>
         <select 
           value={selectedBook?.id || ''} 
           onChange={handleBookChange}
@@ -550,11 +564,14 @@ const ChatInterface: React.FC = () => {
       
       {/* Add the loading circle for chunk processing */}
       {isProcessingChunks && (
-        <LoadingCircle 
-          show={true}
-          processedChunks={chunkProgress.processed} 
+        <LoadingCircle
+          processedChunks={chunkProgress.processed}
           totalChunks={chunkProgress.total}
-          bookId={selectedBook?.id} 
+          exactWordCount={chunkProgress.wordCount}
+          exactTokenCount={chunkProgress.tokenCount}
+          showProgress={true}
+          text={loadingText}
+          error={loadingError}
         />
       )}
     </div>

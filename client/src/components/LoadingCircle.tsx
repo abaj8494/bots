@@ -3,25 +3,31 @@ import './LoadingCircle.css';
 
 interface LoadingCircleProps {
   show?: boolean;
+  showProgress?: boolean;
   processedChunks: number;
   totalChunks: number;
   exactWordCount?: number;
   exactTokenCount?: number;
   bookId?: number;
+  text?: string;
+  error?: string | null;
 }
 
 const LoadingCircle: React.FC<LoadingCircleProps> = ({
   show = true,
+  showProgress = true,
   processedChunks,
   totalChunks,
   exactWordCount,
   exactTokenCount,
-  bookId
+  bookId,
+  text,
+  error: propError
 }) => {
   // Directly use the incoming props
   const [rotation, setRotation] = useState(0);
   const animationRef = useRef<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(propError || null);
 
   // NEW STATE to store updated progress from server
   const [serverProgress, setServerProgress] = useState<{
@@ -35,11 +41,24 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
   useEffect(() => {
     // Only poll if we're showing the LoadingCircle
     if (!show) return;
+    
+    // Don't poll if there's no book ID
+    if (!bookId) {
+      console.log('No bookId provided, skipping progress polling');
+      return;
+    }
 
     const intervalId = setInterval(async () => {
       try {
-        // Use book-specific progress endpoint if bookId is provided
-        const url = bookId ? `/api/chat/progress/${bookId}` : '/api/progress';
+        // Always use book-specific progress endpoint if bookId is provided
+        const url = bookId ? `/api/chat/progress/${bookId}` : null;
+        
+        // Skip polling if no valid URL
+        if (!url) {
+          console.log('No valid progress URL, skipping poll');
+          return;
+        }
+        
         console.log(`Fetching progress from ${url}`);
         
         // Get token for authorization
@@ -70,7 +89,7 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
         console.error('Failed to fetch progress:', err);
         setError('Unable to connect to the server');
       }
-    }, 5000); // poll every 5 seconds
+    }, 2000); // poll every 2 seconds instead of 1 second
 
     return () => clearInterval(intervalId);
   }, [show, bookId]); // Add bookId as a dependency
@@ -132,41 +151,45 @@ Progress: Generating embeddings for batch ${currentBatch} of ${totalBatches}`;
   return (
     <div className="loading-circle-container">
       <div className="loading-circle">
-        {/* Background circle with rotation animation */}
-        <svg 
-          width="100" 
-          height="100" 
-          viewBox="0 0 100 100"
-          style={{ transform: `rotate(${rotation}deg)` }}
-        >
-          <circle
-            className="loading-circle__background"
-            cx="50"
-            cy="50"
-            r="40"
-            fill="none"
-            strokeWidth="5"
-          />
-        </svg>
-        
-        {/* Progress circle */}
-        <svg 
-          width="100" 
-          height="100" 
-          viewBox="0 0 100 100"
-        >
-          <circle
-            className="loading-circle__progress"
-            cx="50"
-            cy="50"
-            r="40"
-            fill="none"
-            strokeWidth="5"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            transform="rotate(-90 50 50)"
-          />
-        </svg>
+        {/* Wrap SVGs in a positioned container */}
+        <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+          {/* Background circle with rotation animation */}
+          <svg 
+            width="100" 
+            height="100" 
+            viewBox="0 0 100 100"
+            style={{ position: 'absolute', top: 0, left: 0, transform: `rotate(${rotation}deg)` }}
+          >
+            <circle
+              className="loading-circle__background"
+              cx="50"
+              cy="50"
+              r="40"
+              fill="none"
+              strokeWidth="5"
+            />
+          </svg>
+          
+          {/* Progress circle */}
+          <svg 
+            width="100" 
+            height="100" 
+            viewBox="0 0 100 100"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
+            <circle
+              className="loading-circle__progress"
+              cx="50"
+              cy="50"
+              r="40"
+              fill="none"
+              strokeWidth="5"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              transform="rotate(-90 50 50)"
+            />
+          </svg>
+        </div>
         
         {/* Percentage text */}
         <div className="loading-circle__percentage">
