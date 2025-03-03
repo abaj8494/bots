@@ -247,6 +247,12 @@
   background-color: #eef1f6;
 }
 
+.tech-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 .footer-text {
   color: #6b7280;
   font-size: 14px;

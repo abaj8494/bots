@@ -64,7 +64,7 @@ const AuthPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) =>
             <span>Continue with Google</span>
           </button>
           <button className="social-button github" onClick={handleGithubLogin}>
-            <GithubIcon />
+            <GithubIcon className="github-icon" />
             <span>Continue with GitHub</span>
           </button>
         </div>
@@ -72,13 +72,13 @@ const AuthPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) =>
         <div className="auth-footer">
           <div className="tech-icons">
             <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer" title="Cursor">
-              <CursorIcon />
+              <CursorIcon className="tech-icon" />
             </a>
             <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" title="Claude AI">
-              <ClaudeIcon />
+              <ClaudeIcon className="tech-icon" />
             </a>
             <a href="https://github.com" target="_blank" rel="noopener noreferrer" title="GitHub">
-              <GithubIcon />
+              <GithubIcon className="tech-icon" />
             </a>
           </div>
           <div className="footer-text">

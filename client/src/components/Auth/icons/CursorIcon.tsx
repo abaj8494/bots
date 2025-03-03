@@ -1,24 +1,14 @@
 import React from 'react';
+import cursorSvg from './cursor.svg';
 
 const CursorIcon: React.FC<{ className?: string }> = ({ className }) => {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-    >
-      <path
-        d="M6 3L18 12L6 21V3Z"
-        fill="#6E56CF"
-        stroke="#6E56CF"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <img 
+      src={cursorSvg} 
+      alt="Cursor" 
+      className={className} 
+      style={{ width: '24px', height: '24px' }} 
+    />
   );
 };
 
