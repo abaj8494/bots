@@ -8,6 +8,8 @@ export interface User {
   password: string;
   created_at?: Date;
   is_verified?: boolean;
+  daily_query_count?: number;
+  last_query_date?: Date;
 }
 
 interface UserApiKey {
@@ -25,6 +27,18 @@ interface VerificationToken {
   expires_at: Date;
   created_at?: Date;
   user_email?: string;
+}
+
+interface UserSubscription {
+  id?: number;
+  user_id: number;
+  tier: 'free' | 'premium';
+  amount?: number;
+  currency?: string;
+  start_date?: Date;
+  end_date?: Date;
+  is_active?: boolean;
+  created_at?: Date;
 }
 
 export const createUser = async (userData: User) => {
@@ -128,5 +142,126 @@ export const getVerificationToken = async (userId: number, token: string) => {
   `;
   
   const result = await db.query(query, [userId, token]);
+  return result.rows[0];
+};
+
+// Query limit and subscription functions
+
+export const resetDailyQueryCount = async (userId: number) => {
+  const query = `
+    UPDATE users
+    SET daily_query_count = 0, last_query_date = CURRENT_DATE
+    WHERE id = $1
+    RETURNING id, username, email, daily_query_count, last_query_date
+  `;
+  
+  const result = await db.query(query, [userId]);
+  return result.rows[0];
+};
+
+export const incrementQueryCount = async (userId: number) => {
+  // First check if we need to reset the counter (new day)
+  const checkQuery = `
+    SELECT id, daily_query_count, last_query_date
+    FROM users
+    WHERE id = $1
+  `;
+  
+  const checkResult = await db.query(checkQuery, [userId]);
+  const user = checkResult.rows[0];
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+  
+  // If it's a new day, reset the counter
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const lastQueryDate = new Date(user.last_query_date).toISOString().split('T')[0];
+  
+  if (today !== lastQueryDate) {
+    return resetDailyQueryCount(userId);
+  }
+  
+  // Otherwise increment the counter
+  const query = `
+    UPDATE users
+    SET daily_query_count = daily_query_count + 1
+    WHERE id = $1
+    RETURNING id, username, email, daily_query_count, last_query_date
+  `;
+  
+  const result = await db.query(query, [userId]);
+  return result.rows[0];
+};
+
+export const getDailyQueryCount = async (userId: number) => {
+  // Check if we need to reset the counter (new day)
+  const checkQuery = `
+    SELECT id, daily_query_count, last_query_date
+    FROM users
+    WHERE id = $1
+  `;
+  
+  const checkResult = await db.query(checkQuery, [userId]);
+  const user = checkResult.rows[0];
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+  
+  // If it's a new day, reset the counter
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const lastQueryDate = new Date(user.last_query_date).toISOString().split('T')[0];
+  
+  if (today !== lastQueryDate) {
+    return 0; // Will be reset when incrementQueryCount is called
+  }
+  
+  return user.daily_query_count;
+};
+
+export const getUserSubscription = async (userId: number) => {
+  const query = `
+    SELECT *
+    FROM user_subscriptions
+    WHERE user_id = $1 AND is_active = true
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  
+  const result = await db.query(query, [userId]);
+  return result.rows[0];
+};
+
+export const createUserSubscription = async (subscription: UserSubscription) => {
+  const { user_id, tier, amount, currency = 'AUD' } = subscription;
+  
+  // First deactivate any existing active subscriptions
+  await db.query(`
+    UPDATE user_subscriptions
+    SET is_active = false
+    WHERE user_id = $1 AND is_active = true
+  `, [user_id]);
+  
+  // Then create the new subscription
+  const query = `
+    INSERT INTO user_subscriptions (user_id, tier, amount, currency)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *
+  `;
+  
+  const result = await db.query(query, [user_id, tier, amount, currency]);
+  return result.rows[0];
+};
+
+export const cancelUserSubscription = async (userId: number) => {
+  const query = `
+    UPDATE user_subscriptions
+    SET is_active = false, end_date = CURRENT_TIMESTAMP
+    WHERE user_id = $1 AND is_active = true
+    RETURNING *
+  `;
+  
+  const result = await db.query(query, [userId]);
   return result.rows[0];
 }; 

@@ -12,6 +12,8 @@ async function setupTables() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         is_verified BOOLEAN DEFAULT FALSE,
+        daily_query_count INTEGER DEFAULT 0,
+        last_query_date DATE DEFAULT CURRENT_DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -55,6 +57,22 @@ async function setupTables() {
       )
     `);
     console.log("Created chat_messages table");
+    
+    // Create user_subscriptions table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        tier VARCHAR(50) NOT NULL DEFAULT 'free',
+        amount DECIMAL(10, 2),
+        currency VARCHAR(3) DEFAULT 'AUD',
+        start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        end_date TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created user_subscriptions table");
     
     console.log("Database setup complete!");
   } catch (error) {

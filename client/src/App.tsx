@@ -6,6 +6,7 @@ import BookGrid from './components/BookGrid';
 import AuthPage from './components/Auth/AuthPage';
 import LoadingCircle from './components/LoadingCircle';
 import { useAuth } from './context/AuthContext';
+import SubscriptionPage from './pages/SubscriptionPage';
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -41,7 +42,7 @@ function App() {
         ) : (
           <>
             <header className="App-header">
-              <h1>Aayush Bajaj's BookBot</h1>
+              <h1>Bajaj's BookBot</h1>
               <p>Preload Public Domain Books into an LLM Context Window!</p>
             </header>
             <main className="App-main">
@@ -49,6 +50,9 @@ function App() {
                 <Route path="/" element={<BookGrid />} />
                 <Route path="/chat/:bookId" element={<ChatInterface />} />
                 <Route path="/author/:authorName" element={<BookGrid />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
+                <Route path="/subscription/success" element={<SubscriptionPage />} />
+                <Route path="/subscription/cancel" element={<SubscriptionPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>

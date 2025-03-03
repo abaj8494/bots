@@ -8,6 +8,7 @@ import {
   embeddingsProgressEmitter, 
   getEmbeddingsProgress 
 } from '../utils/embeddings';
+import { checkQueryLimit } from '../middleware/queryLimit';
 
 const router: Router = express.Router();
 
@@ -120,7 +121,7 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
 // @route   POST api/chat/:bookId
 // @desc    Send a message to chat with a book
 // @access  Private
-router.post('/:bookId', auth, async (req: Request, res: Response) => {
+router.post('/:bookId', auth, checkQueryLimit, async (req: Request, res: Response) => {
   try {
     const { message, chatHistory: clientChatHistory } = req.body;
     const bookId = parseInt(req.params.bookId);

@@ -218,10 +218,10 @@ export const generateChatResponse = async (
       }
     ];
     
-    // Add chat history if provided (limit to 5 previous exchanges to save tokens)
+    // Add chat history if provided (limit to 20 previous exchanges to save tokens)
     if (chatHistory && chatHistory.length > 0) {
-      // Limit to last 5 exchanges to save on token usage
-      const recentHistory = chatHistory.slice(-5);
+      // Limit to last 20 exchanges to save on token usage
+      const recentHistory = chatHistory.slice(-20);
       
       // Add each exchange as a user and assistant message
       recentHistory.forEach(exchange => {
@@ -241,7 +241,7 @@ export const generateChatResponse = async (
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: messages,
-      max_tokens: 500
+      max_tokens: 2000
     });
     
     const responseContent = response.choices[0].message.content || "I'm sorry, I couldn't generate a response.";

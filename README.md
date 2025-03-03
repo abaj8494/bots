@@ -1,47 +1,55 @@
-# BookBot - Chat with Your Favorite Books
-
-BookBot is an AI-powered application that allows users to chat with their favorite books. The application uses natural language processing to generate responses based on the content of the books.
+# BookBot - Prepopulate your GPT4o-mini context window with Public Domain books 
 
 ## Features
 
-- User authentication with email/password and OAuth (Google, GitHub)
-- Email verification for new accounts
-- Chat with books using AI
-- Responsive UI for desktop and mobile
+- customised GPT to be a knowledgable Arts Professor
+- full auth including oauthv2 support for Github and Google logins
+- email verification
+- book grid with covers to select a book
+- chunking to split large books into manageable partitions
 
-## Setup Instructions
+## Usage
 
-### Prerequisites
+1. Register a new account or log in with Google/GitHub
+2. Verify your email address (if registering with email/password)
+3. Select a book from the Grid
+4. Wait for embeddings to complete
+5. Chat with the book
+
+## TODOs
+- [X] add a cap of 20 queries per book per day
+- [X] add icon as real component of complex logarithm function
+- [ ] fix unknown authors
+- [ ] recreate svg covers as nfts
+- [ ] add pricing tier option of 2.99 aud for when user surpasses 20 queries / day
+   - with 2.99 aud they may request up to 300 queries per day
+- [ ] engineer fine-tuned llm to be an expert on book contents
+  - offer for 4.99 aud/month STUDY tier
+
+
+<details>
+<summary>instructions for the self-hosting neckbeard</summary>
+
+### prereqs
 
 - Node.js (v14 or higher)
 - PostgreSQL database
 - SMTP server for sending emails (can use Gmail)
 - Google and GitHub OAuth credentials (optional, for OAuth login)
 
-### Installation
+### installation
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/bookbot.git
+   git clone https://github.com/abaj8494/bookbot.git
    cd bookbot
    ```
 
-2. Install dependencies for both client and server:
-   ```
-   # Install server dependencies
-   cd server
-   npm install
-
-   # Install client dependencies
-   cd ../client
-   npm install
-   ```
-
-3. Set up environment variables:
+2. Set up environment variables:
    - Copy `.env.example` to `.env` in the server directory
    - Update the values in the `.env` file with your own credentials
 
-4. Set up the database:
+3. Set up the database:
    - Create a PostgreSQL database
    - Update the `DATABASE_URL` in the `.env` file
    - Run the database setup script:
@@ -50,30 +58,29 @@ BookBot is an AI-powered application that allows users to chat with their favori
      npm run setup-and-start
      ```
 
-5. Set up the verification tables:
+4. Set up the verification tables:
    ```
    cd server
    npm run setup-verification
    ```
 
-6. Start the development servers:
+5. Import books
    ```
-   # Start the server (in one terminal)
-   cd server
-   npm run dev
+   npm run import-books
+   ```
 
-   # Start the client (in another terminal)
-   cd client
-   npm start
+6. Build and Deploy
+   ```
+   cd /var/www/cloud && cd server && npm run build && cd .. && cd client && npm run build && cd .. && cp -r client/build/* public/ && pm2 restart bookbot-api && sudo systemctl reload openresty
    ```
 
 7. Access the application at `http://localhost:3000`
 
-### OAuth Configuration
+### oauth config
 
 To enable OAuth login with Google and GitHub, you need to set up OAuth applications:
 
-#### Google OAuth Setup:
+#### google:
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project
 3. Navigate to "APIs & Services" > "Credentials"
@@ -81,13 +88,13 @@ To enable OAuth login with Google and GitHub, you need to set up OAuth applicati
 5. Set the authorized redirect URI to `http://localhost:5002/api/auth/google/callback`
 6. Copy the Client ID and Client Secret to your `.env` file
 
-#### GitHub OAuth Setup:
+#### gitHub:
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Create a new OAuth App
 3. Set the authorization callback URL to `http://localhost:5002/api/auth/github/callback`
 4. Copy the Client ID and Client Secret to your `.env` file
 
-### Email Configuration
+### email configuration
 
 To enable email verification, you need to set up an SMTP server:
 
@@ -104,13 +111,7 @@ To enable email verification, you need to set up an SMTP server:
    EMAIL_USER=your_email@gmail.com
    EMAIL_PASSWORD=your_app_password
    ```
-
-## Usage
-
-1. Register a new account or log in with Google/GitHub
-2. Verify your email address (if registering with email/password)
-3. Select a book from the dropdown menu
-4. Start chatting with the book!
+</details>
 
 ## License
 

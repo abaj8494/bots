@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getBooks, sendChatMessage, getBook, trackEmbeddingProgress } from '../services/api';
+import { getBooks, sendChatMessage, getBook, trackEmbeddingProgress, API_URL } from '../services/api';
 import LoadingCircle from './LoadingCircle';
 import './ChatInterface.css';
+import axios from 'axios';
+import { getToken } from '../services/auth';
 
 interface Message {
   id: number;
@@ -50,6 +52,21 @@ const ChatInterface: React.FC = () => {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const progressCleanupRef = useRef<() => void>(() => {});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Add a new state for handling query limits
+  const [queryLimitExceeded, setQueryLimitExceeded] = useState(false);
+  const [queryLimitInfo, setQueryLimitInfo] = useState<{
+    limit: number;
+    count: number;
+    upgrade?: boolean;
+    subscription?: {
+      tier: string;
+      limit: number;
+      upgradePrice?: number;
+      upgradeCurrency?: string;
+      upgradeLimit?: number;
+    }
+  } | null>(null);
 
   // Fetch books on component mount
   useEffect(() => {
@@ -254,142 +271,82 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!inputMessage.trim() || !selectedBook) return;
+    if (!inputMessage.trim() || isLoading || !selectedBook) return;
     
-    const userMessage: Message = {
+    // Add message to UI immediately
+    const tempMessage: Message = {
       id: Date.now(),
       text: inputMessage,
       isUser: true,
       timestamp: new Date()
     };
     
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-    
     try {
-      // Prepare chat history from previous messages
-      // Only include actual exchanges (user messages and AI responses)
-      // Skip welcome messages or system notifications
-      const chatHistory = messages
-        .filter(msg => msg.id !== 1) // Skip welcome message
-        .reduce((result: { message: string; response: string }[], msg, index, array) => {
-          // If this is a user message and the next message exists and is an AI response
-          if (msg.isUser && index + 1 < array.length && !array[index + 1].isUser) {
-            result.push({
-              message: msg.text,
-              response: array[index + 1].text
-            });
-          }
-          return result;
-        }, []);
+      setIsLoading(true);
       
-      console.log(`Sending chat request with ${chatHistory.length} previous exchanges`);
+      setMessages(prev => [...prev, tempMessage]);
+      setInputMessage('');
       
-      // Use the API service to send chat message
-      const response = await sendChatMessage(selectedBook.id, inputMessage, chatHistory);
-      
-      // If response indicates first-time processing, start tracking progress
-      if (response.response && response.response.includes("processing this book for the first time")) {
-        setIsProcessingChunks(true);
-        setChunkProgress({ processed: 0, total: 0, wordCount: 0, tokenCount: 0 });
-        
-        // Start tracking progress
-        if (progressCleanupRef.current) {
-          progressCleanupRef.current(); // Clean up any existing connection
+      // Scroll to the bottom
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-        
-        progressCleanupRef.current = trackEmbeddingProgress(
-          selectedBook.id,
-          (processedChunks, totalChunks, wordCount, tokenCount) => {
-            // Only update progress if the total is non-zero 
-            // This prevents showing incorrect batch counts during initialization
-            if (totalChunks > 0) {
-              setChunkProgress({ 
-                processed: processedChunks, 
-                total: totalChunks,
-                wordCount: wordCount || 0,
-                tokenCount: tokenCount || 0
-              });
-            }
-            
-            // IMPORTANT: Only hide the loading circle when we're COMPLETELY done
-            // and have received valid data (both values > 0)
-            if (processedChunks === totalChunks && totalChunks > 0 && processedChunks > 0) {
-              // Wait a moment to show the 100% completion state
-              // Use a longer delay to ensure the entire process has finished
-              setTimeout(() => {
-                // Double check that we're still in the same state before hiding
-                setChunkProgress(current => {
-                  // Only hide if we're still showing complete
-                  if (current.processed === current.total && current.total > 0) {
-                    setIsProcessingChunks(false);
-                    // Add a message indicating processing is complete
-                    setMessages(prev => [
-                      ...prev,
-                      {
-                        id: Date.now() + 2,
-                        text: `Processing complete! I have now loaded "${selectedBook.title}" by ${selectedBook.author} into our context window. Ask me a question about this book.`,
-                        isUser: false,
-                        timestamp: new Date()
-                      }
-                    ]);
-                  }
-                  return current;
-                });
-              }, 3000); // Increased delay to ensure full completion
-            }
-          },
-          (error) => {
-            console.error('Error tracking progress:', error);
-            
-            // Only show error message and hide loading if we haven't received any progress updates
-            // If we've already started processing and have some progress, 
-            // don't disrupt the user experience with an error
-            if (chunkProgress.total === 0) {
-              setIsProcessingChunks(false);
-              
-              // Check if this is a connection error or a processing error
-              const errorMessage = error.message || 'Unknown error';
-              const isConnectionError = errorMessage.includes('connecting');
-              
-              // Show error message only if we haven't made any progress
-              updateWelcomeMessage(`Error processing book: ${errorMessage}. Please try again later.`);
-            } else {
-              // If we have some progress but encounter an error, just log it
-              // but don't disrupt the user - the book might have processed successfully
-              console.log('Error during progress tracking, but continuing since progress was being made');
-            }
-          }
-        );
-      }
+      }, 100);
       
-      // Ensure the response is properly formatted for Markdown
-      const processedResponse = response.response || "I couldn't generate a response. Please try again.";
+      // Send to server
+      const response = await axios.post(`${API_URL}/api/chat/${selectedBook!.id}`, {
+        message: inputMessage,
+      }, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        }
+      });
       
-      // Add AI response to messages
-      const aiMessage: Message = {
-        id: Date.now() + 1,
-        text: processedResponse,
-        isUser: false,
-        timestamp: new Date()
-      };
+      // Update the temp message with the actual response
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempMessage.id 
+          ? {
+              ...msg,
+              id: response.data.id || msg.id,
+              text: response.data.response || response.data.message || msg.text,
+              isUser: msg.isUser,
+              timestamp: msg.timestamp
+            } 
+          : msg
+      ));
       
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+      // Reset query limit state
+      setQueryLimitExceeded(false);
+      setQueryLimitInfo(null);
+      
+    } catch (error: any) {
       console.error('Error sending message:', error);
       
-      // Add error message
-      const errorMessage: Message = {
-        id: Date.now() + 1,
-        text: "Sorry, there was an error processing your request. Please try again.",
-        isUser: false,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      // Check if this is a query limit error
+      if (error.response && error.response.status === 429) {
+        setQueryLimitExceeded(true);
+        setQueryLimitInfo(error.response.data);
+        
+        // Remove the temp message
+        setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+      } else {
+        // Update the temp message with the error
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempMessage.id 
+            ? {...msg, response: 'Sorry, something went wrong. Please try again.'} 
+            : msg
+        ));
+      }
     } finally {
       setIsLoading(false);
+      
+      // Scroll to the bottom
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
     }
   };
 
@@ -547,7 +504,11 @@ const ChatInterface: React.FC = () => {
               )}
             </div>
             <div className="message-timestamp">
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {message.timestamp && (
+                typeof message.timestamp === 'object' 
+                  ? message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              )}
             </div>
           </div>
         ))}
@@ -587,6 +548,38 @@ const ChatInterface: React.FC = () => {
           text={loadingText}
           error={loadingError}
         />
+      )}
+
+      {/* Add JSX for query limit exceeded notification */}
+      {queryLimitExceeded && queryLimitInfo && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-amber-800">
+                Daily Query Limit Reached
+              </h3>
+              <div className="mt-2 text-sm text-amber-700">
+                <p>You've used {queryLimitInfo.count} of your {queryLimitInfo.limit} daily queries.</p>
+                {queryLimitInfo.upgrade && queryLimitInfo.subscription && (
+                  <div className="mt-3">
+                    <p>Upgrade to Premium for {queryLimitInfo.subscription.upgradeLimit} queries/day.</p>
+                    <a 
+                      href="/subscription" 
+                      className="mt-2 inline-block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    >
+                      Upgrade for ${queryLimitInfo.subscription.upgradePrice} {queryLimitInfo.subscription.upgradeCurrency}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

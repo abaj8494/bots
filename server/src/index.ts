@@ -10,6 +10,8 @@ import authRoutes from './routes/auth';
 import booksRoutes from './routes/books';
 import chatRoutes from './routes/chat';
 import embeddingRoutes from './routes/embedding';
+import subscriptionRoutes from './routes/subscription';
+import { handleStripeWebhook } from './routes/webhooks';
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +28,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Special route for Stripe webhooks (must be before express.json() middleware)
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
+
+// Regular middleware for other routes
 app.use(express.json());
 // Initialize Passport
 app.use(passport.initialize());
@@ -39,6 +45,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/books', booksRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/embeddings', embeddingRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
