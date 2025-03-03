@@ -22,10 +22,16 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
     return;
   }
   
+  // CORS headers for EventSource connections
+  res.setHeader('Access-Control-Allow-Origin', 'https://abaj.cloud');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
   // Set headers for SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  
+  console.log(`SSE connection established for book ${bookId}, user ${req.user.id}`);
   
   // Send initial progress if available
   const initialProgress = getEmbeddingsProgress(bookId);

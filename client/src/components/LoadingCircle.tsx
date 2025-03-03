@@ -5,49 +5,86 @@ interface LoadingCircleProps {
   show?: boolean;
   processedChunks: number;
   totalChunks: number;
+  exactWordCount?: number;
+  exactTokenCount?: number;
+  bookId?: number;
 }
 
 const LoadingCircle: React.FC<LoadingCircleProps> = ({
   show = true,
   processedChunks,
   totalChunks,
+  exactWordCount,
+  exactTokenCount,
+  bookId
 }) => {
-  // Store the highest value we've seen for processed and total chunks
-  // This prevents the progress from going backwards if updates arrive out of order
-  const [highestProcessed, setHighestProcessed] = useState(0);
-  const [highestTotal, setHighestTotal] = useState(0);
-  
-  // Animation for background rotation
-  const animationRef = useRef<number | null>(null);
+  // Directly use the incoming props
   const [rotation, setRotation] = useState(0);
+  const animationRef = useRef<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // NEW STATE to store updated progress from server
+  const [serverProgress, setServerProgress] = useState<{
+    processedChunks: number;
+    totalChunks: number;
+    exactWordCount: number;
+    exactTokenCount: number;
+  } | null>(null);
+
+  // OPTIONAL: periodically poll server for updated progress
+  useEffect(() => {
+    // Only poll if we're showing the LoadingCircle
+    if (!show) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        // Use book-specific progress endpoint if bookId is provided
+        const url = bookId ? `/api/chat/progress/${bookId}` : '/api/progress';
+        console.log(`Fetching progress from ${url}`);
+        
+        // Get token for authorization
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          console.error(`Error fetching progress: ${response.status} ${response.statusText}`);
+          if (response.status === 401) {
+            setError('Authentication error. Please log in again.');
+          } else {
+            setError(`Server error: ${response.status}`);
+          }
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('Progress data:', data);
+        setServerProgress(data);
+        setError(null); // Clear any previous errors
+      } catch (err) {
+        console.error('Failed to fetch progress:', err);
+        setError('Unable to connect to the server');
+      }
+    }, 5000); // poll every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [show, bookId]); // Add bookId as a dependency
 
   useEffect(() => {
-    // Update highest values if current values are higher
-    if (processedChunks > highestProcessed) {
-      setHighestProcessed(processedChunks);
-    }
-    
-    if (totalChunks > highestTotal && totalChunks > 0) {
-      setHighestTotal(totalChunks);
-    }
-    
-    // Log updates to help debugging
-    if (processedChunks > 0 || totalChunks > 0) {
-      console.log(`LoadingCircle: received update - processed: ${processedChunks}, total: ${totalChunks}`);
-    }
-  }, [processedChunks, totalChunks, highestProcessed, highestTotal]);
-  
-  // Animation loop for background rotation
-  useEffect(() => {
     if (!show) return;
-    
+
     const animate = () => {
-      setRotation(prev => (prev + 0.2) % 360);
+      setRotation((prev) => (prev + 0.2) % 360);
       animationRef.current = requestAnimationFrame(animate);
     };
-    
+
     animationRef.current = requestAnimationFrame(animate);
-    
+
     return () => {
       if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
@@ -57,34 +94,20 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
 
   if (!show) return null;
 
-  // Use the highest values we've seen for calculations
-  const effectiveProcessed = Math.max(highestProcessed, processedChunks);
-  const effectiveTotal = Math.max(highestTotal, totalChunks, 1); // Prevent division by zero
-  
-  // Calculate percentage filled (0-100)
-  const percentage = effectiveTotal > 0 
-    ? Math.min(100, Math.round((effectiveProcessed / effectiveTotal) * 100)) 
-    : 0;
-  
-  // Calculate stroke dash offset based on percentage
-  const circumference = 2 * Math.PI * 40; // Circle radius is 40px
+  // If we have server progress, prefer it over the props
+  const currentProcessedChunks = serverProgress?.processedChunks ?? processedChunks;
+  const currentTotalChunks = Math.max(serverProgress?.totalChunks ?? totalChunks, 1);
+  const displayedWords = serverProgress?.exactWordCount ?? exactWordCount ?? 0;
+  const displayedTokens = serverProgress?.exactTokenCount ?? exactTokenCount ?? 0;
+
+  // FIX Linter Errors: define these variables
+  const percentage = Math.min(
+    100,
+    Math.round((currentProcessedChunks / currentTotalChunks) * 100)
+  );
+  const circumference = 2 * Math.PI * 40; 
   const dashOffset = circumference * (1 - percentage / 100);
-  
-  // Calculate batch numbers (starting from 1 for user-friendly display)
-  const currentBatch = effectiveProcessed > 0 ? effectiveProcessed : 0;
-  const totalBatches = effectiveTotal > 0 ? effectiveTotal : 0;
-  
-  // Calculate words and tokens based on actual data
-  // Adjust character count estimate based on actual book data
-  const avgCharsPerChunk = 1000; // More realistic character count per chunk
-  const actualCharacters = effectiveTotal * avgCharsPerChunk;
-  
-  // Average English word is ~5 characters
-  const approxWords = Math.round(actualCharacters / 5);
-  
-  // Tokens are roughly 3/4 of word count for English text
-  const approxTokens = Math.round(approxWords * 0.75);
-  
+
   // Format numbers with commas
   const formatNumber = (num: number): string => {
     return num.toLocaleString();
@@ -92,22 +115,18 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
   
   // Generate progress message
   let progressMessage = '';
-  
-  if (effectiveTotal === 0) {
-    progressMessage = 'Preparing to process book...';
-  } else if (effectiveProcessed === 0) {
-    progressMessage = `Getting ready to process ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
-  } else if (effectiveProcessed < effectiveTotal) {
-    // Calculate batch numbers more accurately for server display
-    const batchSize = 20; // Server processes chunks in batches of 20
-    const serverCurrentBatch = Math.floor(effectiveProcessed / batchSize) + 1;
-    const serverTotalBatches = Math.ceil(effectiveTotal / batchSize);
-    
-    progressMessage = `Processing batch ${serverCurrentBatch}/${serverTotalBatches}`;
-    progressMessage += `\nProcessed ${formatNumber(effectiveProcessed)} of ${formatNumber(effectiveTotal)} chunks`;
-    progressMessage += `\nBook contains approximately ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
-  } else {
-    progressMessage = `Completed processing ${formatNumber(approxWords)} words (${formatNumber(approxTokens)} tokens)`;
+
+  // Compute the batch numbers (just reuse existing variables, or define them if needed)
+  const batchSize = 20; // or the size your server uses
+  const currentBatch = Math.floor(currentProcessedChunks / batchSize) + 1;
+  const totalBatches = Math.ceil(currentTotalChunks / batchSize);
+
+  // Replace the message with your custom string
+  progressMessage = `Books contain many words. This one contains ${formatNumber(displayedWords)}, which equates to ${formatNumber(displayedTokens)} tokens. ChatGPT4o only permits context windows of 128K, and so we must be clever in re-embedding the text.
+Progress: Generating embeddings for batch ${currentBatch} of ${totalBatches}`;
+
+  if (error) {
+    progressMessage += `\n\nConnection issue: ${error}`;
   }
 
   return (

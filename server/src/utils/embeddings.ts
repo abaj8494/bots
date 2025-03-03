@@ -166,14 +166,25 @@ export async function processBookContent(
   userId?: number,
   forceRefresh: boolean = false
 ): Promise<void> {
+  console.log(`Processing book ${bookId} with content length ${content.length}`);
+  
   // Check if we already have embeddings for this book
   if (!forceRefresh && embeddingsCache[bookId] && !embeddingsCache[bookId].isProcessing) {
     console.log(`Using cached embeddings for book ${bookId}`);
+    
+    // Even with cached embeddings, emit a progress event to update UI
+    embeddingsProgressEmitter.emit('progress', {
+      bookId,
+      processedChunks: embeddingsCache[bookId].chunks.length,
+      totalChunks: embeddingsCache[bookId].chunks.length
+    });
+    
     return;
   }
   
   // Mark as processing to avoid duplicate processing
   if (!embeddingsCache[bookId]) {
+    console.log(`Creating new embedding cache entry for book ${bookId}`);
     embeddingsCache[bookId] = { 
       chunks: [], 
       embeddings: [], 
@@ -181,6 +192,7 @@ export async function processBookContent(
       progress: { processedChunks: 0, totalChunks: 0 }
     };
   } else {
+    console.log(`Updating existing embedding cache entry for book ${bookId}`);
     embeddingsCache[bookId].isProcessing = true;
     embeddingsCache[bookId].progress = { processedChunks: 0, totalChunks: 0 };
   }
@@ -188,9 +200,15 @@ export async function processBookContent(
   try {
     console.log(`Processing book ${bookId} for embeddings (${content.length} characters)`);
     
+    // Ensure we have content to process
+    if (!content || content.length === 0) {
+      console.error(`Book ${bookId} has no content to process`);
+      throw new Error('No content provided for embedding');
+    }
+    
     // Split content into chunks
     const chunks = chunkText(content);
-    console.log(`Book split into ${chunks.length} chunks`);
+    console.log(`Book ${bookId} split into ${chunks.length} chunks`);
     
     // Initialize progress
     embeddingsCache[bookId].progress = {
@@ -232,6 +250,14 @@ export async function processBookContent(
     // Make sure to mark as not processing even if there's an error
     if (embeddingsCache[bookId]) {
       embeddingsCache[bookId].isProcessing = false;
+      
+      // Emit an error progress event
+      embeddingsProgressEmitter.emit('progress', {
+        bookId,
+        processedChunks: 0,
+        totalChunks: 1,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
     throw error;
   }

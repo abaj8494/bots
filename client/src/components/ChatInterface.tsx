@@ -553,7 +553,8 @@ const ChatInterface: React.FC = () => {
         <LoadingCircle 
           show={true}
           processedChunks={chunkProgress.processed} 
-          totalChunks={chunkProgress.total} 
+          totalChunks={chunkProgress.total}
+          bookId={selectedBook?.id} 
         />
       )}
     </div>

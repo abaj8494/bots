@@ -119,114 +119,178 @@ export const trackEmbeddingProgress = (
   const eventSourceUrl = `${API_URL}/api/chat/progress/${bookId}?token=${encodeURIComponent(token)}`;
   console.log(`EventSource URL: ${eventSourceUrl}`);
   
+  // Try creating the EventSource
   let eventSource: EventSource;
+  
   try {
-    eventSource = new EventSource(
-      eventSourceUrl,
-      { withCredentials: true }
-    );
+    // Create with withCredentials set to true
+    eventSource = new EventSource(eventSourceUrl, { withCredentials: true });
+    
+    // Add more debug logging
+    console.log('EventSource created successfully');
+    
+    // Flag to track if we've received at least one valid progress update
+    let receivedValidProgress = false;
+    // Flag to track if we're expecting the connection to close
+    let expectingClose = false;
+    // Last progress values for reconnection logic
+    let lastProcessed = 0;
+    let lastTotal = 0;
+    
+    // Set up event handlers
+    eventSource.onopen = () => {
+      console.log('SSE Connection opened successfully');
+      // Reset error state if we successfully open a connection
+      receivedValidProgress = false;
+    };
+    
+    eventSource.onmessage = (event) => {
+      try {
+        console.log('Progress update received:', event.data);
+        const data = JSON.parse(event.data);
+        
+        // Validate data format
+        if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
+          console.log(`Progress: ${data.processedChunks}/${data.totalChunks}`);
+          
+          // Store last values
+          lastProcessed = data.processedChunks;
+          lastTotal = data.totalChunks;
+          
+          // Set receivedValidProgress to true when we get actual progress data
+          if (data.totalChunks > 0) {
+            receivedValidProgress = true;
+          }
+          
+          // Call the onProgress callback with the current progress
+          onProgress(data.processedChunks, data.totalChunks);
+          
+          // If processing is complete, close the connection cleanly
+          if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+            console.log('Processing complete - closing SSE connection');
+            expectingClose = true;
+            
+            // Give UI time to show 100% completion before closing
+            setTimeout(() => {
+              eventSource.close();
+            }, 1000);
+          }
+        } else {
+          console.warn('Received malformed progress data:', data);
+        }
+      } catch (error) {
+        console.error('Error parsing progress data:', error);
+      }
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+      
+      // If we're getting a CORS error, try without credentials
+      if (!receivedValidProgress && !expectingClose) {
+        console.log('Attempting to reconnect without credentials');
+        eventSource.close();
+        
+        try {
+          // Create a fallback request to get progress directly
+          fetch(`${API_URL}/api/chat/progress/${bookId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            console.log('Fallback progress data:', data);
+            if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
+              onProgress(data.processedChunks, data.totalChunks);
+            }
+          })
+          .catch(err => console.error('Fallback request failed:', err));
+        } catch (fallbackError) {
+          console.error('Error making fallback request:', fallbackError);
+        }
+      }
+      
+      // If we've already received valid progress, don't report errors
+      if (receivedValidProgress) {
+        console.log('SSE connection error after receiving valid progress - ignoring');
+        
+        // If we're near the end (>90% done), assume it completed successfully
+        if (lastProcessed > 0 && lastTotal > 0 && (lastProcessed / lastTotal) > 0.9) {
+          console.log('Almost complete, closing connection silently');
+          expectingClose = true;
+          eventSource.close();
+          
+          // Send one final progress update to show 100% completion
+          onProgress(lastTotal, lastTotal);
+          return;
+        }
+      }
+      
+      // Don't report errors if we're expecting to close
+      if (!expectingClose && !receivedValidProgress) {
+        onError(new Error('Error connecting to progress updates'));
+      }
+      
+      // Always close the connection on error to prevent duplicate connections
+      try {
+        eventSource.close();
+      } catch (e) {
+        console.error('Error closing EventSource:', e);
+      }
+    };
+    
+    // Return a cleanup function
+    return () => {
+      console.log('Cleaning up SSE connection');
+      expectingClose = true; // Mark as expecting close to prevent error messages
+      try {
+        eventSource.close();
+      } catch (e) {
+        console.error('Error during cleanup of EventSource:', e);
+      }
+    };
+    
   } catch (err) {
     console.error("Failed to create EventSource:", err);
     onError(new Error('Failed to initialize progress tracking'));
-    return () => {};
-  }
-  
-  // Flag to track if we've received at least one valid progress update
-  let receivedValidProgress = false;
-  // Flag to track if we're expecting the connection to close
-  let expectingClose = false;
-  // Last progress values for reconnection logic
-  let lastProcessed = 0;
-  let lastTotal = 0;
-  
-  // Set up event handlers
-  eventSource.onopen = () => {
-    console.log('SSE Connection opened successfully');
-    // Reset error state if we successfully open a connection
-    receivedValidProgress = false;
-  };
-  
-  eventSource.onmessage = (event) => {
-    try {
-      console.log('Progress update received:', event.data);
-      const data = JSON.parse(event.data);
-      
-      // Validate data format
-      if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
-        console.log(`Progress: ${data.processedChunks}/${data.totalChunks}`);
+    
+    // Try a fallback polling approach
+    console.log('Falling back to polling for progress updates');
+    
+    // Set up a polling interval as fallback
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/chat/progress/${bookId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         
-        // Store last values
-        lastProcessed = data.processedChunks;
-        lastTotal = data.totalChunks;
-        
-        // Set receivedValidProgress to true when we get actual progress data
-        if (data.totalChunks > 0) {
-          receivedValidProgress = true;
-        }
-        
-        // Call the onProgress callback with the current progress
-        onProgress(data.processedChunks, data.totalChunks);
-        
-        // If processing is complete, close the connection cleanly
-        if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
-          console.log('Processing complete - closing SSE connection');
-          expectingClose = true;
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Poll progress data:', data);
           
-          // Give UI time to show 100% completion before closing
-          setTimeout(() => {
-            eventSource.close();
-          }, 1000);
+          if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
+            onProgress(data.processedChunks, data.totalChunks);
+            
+            // If processing is complete, stop polling
+            if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+              clearInterval(pollInterval);
+            }
+          }
         }
-      } else {
-        console.warn('Received malformed progress data:', data);
+      } catch (error) {
+        console.error('Error polling for progress:', error);
       }
-    } catch (error) {
-      console.error('Error parsing progress data:', error);
-    }
-  };
-  
-  eventSource.onerror = (error) => {
-    console.error('SSE connection error:', error);
+    }, 3000); // Poll every 3 seconds
     
-    // If we've already received valid progress, don't report errors
-    if (receivedValidProgress) {
-      console.log('SSE connection error after receiving valid progress - ignoring');
-      
-      // If we're near the end (>90% done), assume it completed successfully
-      if (lastProcessed > 0 && lastTotal > 0 && (lastProcessed / lastTotal) > 0.9) {
-        console.log('Almost complete, closing connection silently');
-        expectingClose = true;
-        eventSource.close();
-        
-        // Send one final progress update to show 100% completion
-        onProgress(lastTotal, lastTotal);
-        return;
-      }
-    }
-    
-    // Don't report errors if we're expecting to close
-    if (!expectingClose && !receivedValidProgress) {
-      onError(new Error('Error connecting to progress updates'));
-    }
-    
-    // Always close the connection on error to prevent duplicate connections
-    try {
-      eventSource.close();
-    } catch (e) {
-      console.error('Error closing EventSource:', e);
-    }
-  };
-  
-  // Return a cleanup function
-  return () => {
-    console.log('Cleaning up SSE connection');
-    expectingClose = true; // Mark as expecting close to prevent error messages
-    try {
-      eventSource.close();
-    } catch (e) {
-      console.error('Error during cleanup of EventSource:', e);
-    }
-  };
+    // Return a cleanup function for the polling
+    return () => {
+      console.log('Cleaning up progress polling');
+      clearInterval(pollInterval);
+    };
+  }
 };
 
 export default api; 
