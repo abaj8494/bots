@@ -213,4 +213,41 @@
   padding: 10px;
   border-radius: 5px;
   font-size: 14px;
+}
+
+/* Footer styles */
+.auth-footer {
+  margin-top: 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.tech-icons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.tech-icons a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #f5f7fa;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.tech-icons a:hover {
+  transform: translateY(-3px);
+  background-color: #eef1f6;
+}
+
+.footer-text {
+  color: #6b7280;
+  font-size: 14px;
 } 

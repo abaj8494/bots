@@ -4,6 +4,8 @@ import RegisterForm from './RegisterForm';
 import './Auth.css';
 import GoogleIcon from './icons/GoogleIcon';
 import GithubIcon from './icons/GithubIcon';
+import CursorIcon from './icons/CursorIcon';
+import ClaudeIcon from './icons/ClaudeIcon';
 
 // Use environment variable if available, otherwise default to production URL
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud';
@@ -65,6 +67,23 @@ const AuthPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) =>
             <GithubIcon />
             <span>Continue with GitHub</span>
           </button>
+        </div>
+        
+        <div className="auth-footer">
+          <div className="tech-icons">
+            <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer" title="Cursor">
+              <CursorIcon />
+            </a>
+            <a href="https://claude.ai" target="_blank" rel="noopener noreferrer" title="Claude AI">
+              <ClaudeIcon />
+            </a>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" title="GitHub">
+              <GithubIcon />
+            </a>
+          </div>
+          <div className="footer-text">
+            Built with Cursor and Claude. Version Controlled by Github
+          </div>
         </div>
       </div>
     </div>

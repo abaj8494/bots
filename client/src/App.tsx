@@ -41,8 +41,8 @@ function App() {
         ) : (
           <>
             <header className="App-header">
-              <h1>BookBot</h1>
-              <p>Preload Public Domain Books into the Context Window of ChatGPT4o-mini!</p>
+              <h1>Aayush Bajaj's BookBot</h1>
+              <p>Preload Public Domain Books into an LLM Context Window!</p>
             </header>
             <main className="App-main">
               <Routes>

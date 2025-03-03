@@ -110,16 +110,30 @@ const ChatInterface: React.FC = () => {
                   progressCleanupRef.current = trackEmbeddingProgress(
                     bookIdNum,
                     (processedChunks, totalChunks, wordCount, tokenCount) => {
-                      console.log(`Processing chunks: ${processedChunks}/${totalChunks}`);
+                      console.log(`Processing chunks: ${processedChunks}/${totalChunks}, words: ${wordCount}, tokens: ${tokenCount}`);
                       
                       // Only update progress if the total is non-zero 
                       // This prevents showing incorrect batch counts during initialization
                       if (totalChunks > 0) {
-                        setChunkProgress({ 
-                          processed: processedChunks, 
-                          total: totalChunks,
-                          wordCount: wordCount || 0,
-                          tokenCount: tokenCount || 0
+                        setChunkProgress(current => {
+                          // Keep the highest word and token counts we've seen
+                          const newWordCount = Math.max(wordCount || 0, current.wordCount || 0);
+                          const newTokenCount = Math.max(tokenCount || 0, current.tokenCount || 0);
+                          
+                          // Log if we're updating the counts
+                          if (newWordCount > current.wordCount) {
+                            console.log(`Updating word count to higher value: ${newWordCount} (was ${current.wordCount})`);
+                          }
+                          if (newTokenCount > current.tokenCount) {
+                            console.log(`Updating token count to higher value: ${newTokenCount} (was ${current.tokenCount})`);
+                          }
+                          
+                          return { 
+                            processed: processedChunks, 
+                            total: totalChunks,
+                            wordCount: newWordCount,
+                            tokenCount: newTokenCount
+                          };
                         });
                       }
                       

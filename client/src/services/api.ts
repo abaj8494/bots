@@ -188,9 +188,28 @@ export const trackEmbeddingProgress = (
             console.log('Processing complete - closing SSE connection');
             expectingClose = true;
             
+            // Store the final values for any error handling later
+            lastProcessed = data.processedChunks;
+            lastTotal = data.totalChunks;
+            lastWordCount = data.exactWordCount || 0;
+            lastTokenCount = data.exactTokenCount || 0;
+            
+            // Call onProgress one more time with the final values to ensure they're captured
+            onProgress(
+              data.processedChunks,
+              data.totalChunks,
+              data.exactWordCount || 0,
+              data.exactTokenCount || 0
+            );
+            
             // Give UI time to show 100% completion before closing
             setTimeout(() => {
               eventSource.close();
+              
+              // Call onComplete if provided
+              if (onComplete) {
+                onComplete();
+              }
             }, 1000);
           }
         } else {
@@ -224,12 +243,23 @@ export const trackEmbeddingProgress = (
             lastTotal = data.totalChunks;
             lastWordCount = data.exactWordCount || 0;
             lastTokenCount = data.exactTokenCount || 0;
+            
+            // Call the progress callback with updated values
             onProgress(
               data.processedChunks, 
               data.totalChunks, 
               data.exactWordCount || 0, 
               data.exactTokenCount || 0
             );
+            
+            // If processing is complete, finalize
+            if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+              console.log('Fallback request: Processing complete');
+              // Call onComplete if provided
+              if (onComplete) {
+                onComplete();
+              }
+            }
           })
           .catch(err => console.error('Fallback request failed:', err));
         } catch (fallbackError) {
@@ -298,11 +328,37 @@ export const trackEmbeddingProgress = (
           console.log('Poll progress data:', data);
           
           if (data && typeof data.processedChunks === 'number' && typeof data.totalChunks === 'number') {
-            onProgress(data.processedChunks, data.totalChunks, data.exactWordCount || 0, data.exactTokenCount || 0);
+            // Store the last values for potential error handling
+            lastProcessed = data.processedChunks;
+            lastTotal = data.totalChunks;
+            lastWordCount = data.exactWordCount || 0;
+            lastTokenCount = data.exactTokenCount || 0;
             
-            // If processing is complete, stop polling
+            // Call the progress callback with the updated values
+            onProgress(
+              data.processedChunks, 
+              data.totalChunks,
+              data.exactWordCount || 0,
+              data.exactTokenCount || 0
+            );
+            
+            // If processing is complete, clean up
             if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+              console.log('Polling: Processing complete. Cleaning up polling interval');
               clearInterval(pollInterval);
+              
+              // Send one final clean progress update
+              onProgress(
+                data.totalChunks,  // Ensure 100% is shown
+                data.totalChunks,
+                data.exactWordCount || lastWordCount || 0,
+                data.exactTokenCount || lastTokenCount || 0
+              );
+              
+              // Call onComplete if provided
+              if (onComplete) {
+                onComplete();
+              }
             }
           }
         }

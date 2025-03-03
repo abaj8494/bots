@@ -37,6 +37,10 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
     exactTokenCount: number;
   } | null>(null);
 
+  // Add refs to store the highest seen word and token counts
+  const highestWordCountRef = useRef<number>(0);
+  const highestTokenCountRef = useRef<number>(0);
+
   // OPTIONAL: periodically poll server for updated progress
   useEffect(() => {
     // Only poll if we're showing the LoadingCircle
@@ -83,13 +87,32 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
         
         const data = await response.json();
         console.log('Progress data:', data);
-        setServerProgress(data);
+        
+        // Update highest word and token counts if the new values are higher
+        if (data.exactWordCount && data.exactWordCount > highestWordCountRef.current) {
+          console.log(`Updating highest word count: ${data.exactWordCount}`);
+          highestWordCountRef.current = data.exactWordCount;
+        }
+        
+        if (data.exactTokenCount && data.exactTokenCount > highestTokenCountRef.current) {
+          console.log(`Updating highest token count: ${data.exactTokenCount}`);
+          highestTokenCountRef.current = data.exactTokenCount;
+        }
+        
+        // Update server progress with the highest values we've seen
+        setServerProgress({
+          processedChunks: data.processedChunks,
+          totalChunks: data.totalChunks,
+          exactWordCount: Math.max(data.exactWordCount || 0, highestWordCountRef.current),
+          exactTokenCount: Math.max(data.exactTokenCount || 0, highestTokenCountRef.current)
+        });
+        
         setError(null); // Clear any previous errors
       } catch (err) {
         console.error('Failed to fetch progress:', err);
         setError('Unable to connect to the server');
       }
-    }, 2000); // poll every 2 seconds instead of 1 second
+    }, 2000); // poll every 2 seconds
 
     return () => clearInterval(intervalId);
   }, [show, bookId]); // Add bookId as a dependency
@@ -111,13 +134,37 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
     };
   }, [show]);
 
+  // Update the highest values from props when they change
+  useEffect(() => {
+    if (exactWordCount && exactWordCount > highestWordCountRef.current) {
+      console.log(`Updating highest word count from props: ${exactWordCount}`);
+      highestWordCountRef.current = exactWordCount;
+    }
+    
+    if (exactTokenCount && exactTokenCount > highestTokenCountRef.current) {
+      console.log(`Updating highest token count from props: ${exactTokenCount}`);
+      highestTokenCountRef.current = exactTokenCount;
+    }
+  }, [exactWordCount, exactTokenCount]);
+
   if (!show) return null;
 
   // If we have server progress, prefer it over the props
   const currentProcessedChunks = serverProgress?.processedChunks ?? processedChunks;
   const currentTotalChunks = Math.max(serverProgress?.totalChunks ?? totalChunks, 1);
-  const displayedWords = serverProgress?.exactWordCount ?? exactWordCount ?? 0;
-  const displayedTokens = serverProgress?.exactTokenCount ?? exactTokenCount ?? 0;
+  
+  // Always use the highest word and token counts we've seen
+  const displayedWords = Math.max(
+    serverProgress?.exactWordCount ?? 0,
+    exactWordCount ?? 0,
+    highestWordCountRef.current
+  );
+  
+  const displayedTokens = Math.max(
+    serverProgress?.exactTokenCount ?? 0,
+    exactTokenCount ?? 0,
+    highestTokenCountRef.current
+  );
 
   // FIX Linter Errors: define these variables
   const percentage = Math.min(
@@ -141,7 +188,14 @@ const LoadingCircle: React.FC<LoadingCircleProps> = ({
   const totalBatches = Math.ceil(currentTotalChunks / batchSize);
 
   // Replace the message with your custom string
-  progressMessage = `Books contain many words. This one contains ${formatNumber(displayedWords)}, which equates to ${formatNumber(displayedTokens)} tokens. ChatGPT4o only permits context windows of 128K, and so we must be clever in re-embedding the text.
+  progressMessage = `Books contain many words.
+
+This book contains ${formatNumber(displayedWords)} words, 
+which approximately equates to ${formatNumber(displayedTokens)} tokens.
+
+ChatGPT4o only permits context windows of 128,000 tokens,
+so we must be clever in re-embedding the text.
+
 Progress: Generating embeddings for batch ${currentBatch} of ${totalBatches}`;
 
   if (error) {

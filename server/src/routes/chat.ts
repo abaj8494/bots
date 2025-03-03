@@ -27,9 +27,13 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   // Set headers for SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering
+  
+  // Increase the max event listeners to prevent warnings
+  embeddingsProgressEmitter.setMaxListeners(100);
   
   console.log(`SSE connection established for book ${bookId}, user ${req.user.id}`);
   
@@ -37,6 +41,8 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
   const initialProgress = getEmbeddingsProgress(bookId);
   if (initialProgress) {
     res.write(`data: ${JSON.stringify(initialProgress)}\n\n`);
+    // Flush the data immediately
+    res.flushHeaders();
   } else {
     res.write(`data: ${JSON.stringify({ 
       processedChunks: 0, 
@@ -44,6 +50,8 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
       exactWordCount: 0, 
       exactTokenCount: 0 
     })}\n\n`);
+    // Flush the data immediately
+    res.flushHeaders();
   }
   
   // Function to handle progress updates
@@ -56,14 +64,46 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
     error?: string;
   }) => {
     if (data.bookId === bookId) {
-      // Send SSE event with progress data
-      res.write(`data: ${JSON.stringify({
-        processedChunks: data.processedChunks,
-        totalChunks: data.totalChunks,
-        exactWordCount: data.exactWordCount || 0,
-        exactTokenCount: data.exactTokenCount || 0,
-        error: data.error
-      })}\n\n`);
+      // Enhanced logging for debugging
+      console.log(`Progress update for book ${bookId}: ${data.processedChunks}/${data.totalChunks}, words: ${data.exactWordCount || 0}, tokens: ${data.exactTokenCount || 0}`);
+      
+      try {
+        // Send SSE event with progress data
+        res.write(`data: ${JSON.stringify({
+          processedChunks: data.processedChunks,
+          totalChunks: data.totalChunks,
+          exactWordCount: data.exactWordCount || 0,
+          exactTokenCount: data.exactTokenCount || 0,
+          error: data.error
+        })}\n\n`);
+        
+        // Flush data immediately
+        res.flushHeaders();
+        
+        // If processing is complete, send a final update and keep connection
+        // open for a moment to ensure the client receives it
+        if (data.processedChunks === data.totalChunks && data.totalChunks > 0) {
+          console.log(`Processing completed for book ${bookId}, sending final update`);
+          
+          // Send a final completion message to ensure client gets it
+          setTimeout(() => {
+            try {
+              res.write(`data: ${JSON.stringify({
+                processedChunks: data.totalChunks,
+                totalChunks: data.totalChunks,
+                exactWordCount: data.exactWordCount || 0,
+                exactTokenCount: data.exactTokenCount || 0,
+                completed: true
+              })}\n\n`);
+              res.flushHeaders();
+            } catch (err) {
+              console.error(`Error sending final update for book ${bookId}:`, err);
+            }
+          }, 500);
+        }
+      } catch (err) {
+        console.error(`Error sending progress update for book ${bookId}:`, err);
+      }
     }
   };
   
