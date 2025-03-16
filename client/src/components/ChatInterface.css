@@ -247,23 +247,77 @@
   }
   
   .book-info {
-    flex-direction: column;
+    flex-direction: row;
+    padding: 10px;
     align-items: center;
   }
-  
-  .book-details {
-    margin-left: 0;
-    margin-top: 15px;
-    text-align: center;
-  }
-  
+
   .book-cover {
-    width: 100px;
-    height: 150px;
-    max-width: 100px;
+    width: 60px;
+    height: 90px;
+    min-width: 60px;
   }
-  
+
+  .book-details {
+    margin-left: 12px;
+    overflow: hidden;
+  }
+
+  .book-details h3 {
+    font-size: 1rem;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .book-details h4 {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .book-details p {
+    font-size: 0.8rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+  }
+
   .message {
     max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-container {
+    height: calc(100vh - 100px);
+  }
+
+  .book-info {
+    padding: 8px;
+  }
+
+  .book-cover {
+    width: 50px;
+    height: 75px;
+    min-width: 50px;
+  }
+
+  .book-details h3 {
+    font-size: 0.95rem;
+  }
+
+  .book-details h4 {
+    font-size: 0.8rem;
+  }
+
+  .book-details p {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 2;
   }
 } 

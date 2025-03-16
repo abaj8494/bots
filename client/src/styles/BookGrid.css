@@ -128,27 +128,58 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .book-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 20px;
+  .book-grid-container {
+    padding: 10px;
   }
-  
-  .book-cover-container {
-    height: 200px;
-  }
-}
 
-@media (max-width: 480px) {
   .book-grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 15px;
   }
   
   .book-cover-container {
-    height: 180px;
+    height: 160px;
+  }
+
+  .book-details {
+    padding: 8px;
+  }
+
+  .book-title {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    -webkit-line-clamp: 1;
+  }
+
+  .book-author {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .book-grid-container {
+    padding: 8px;
+  }
+
+  .book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+  }
+  
+  .book-cover-container {
+    height: 140px;
   }
   
   .book-details {
-    padding: 10px;
+    padding: 6px;
+  }
+
+  .book-title {
+    font-size: 0.85rem;
+    -webkit-line-clamp: 1;
+  }
+
+  .book-author {
+    font-size: 0.75rem;
   }
 } 

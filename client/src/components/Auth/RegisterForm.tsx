@@ -32,6 +32,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess }) => {
       return;
     }
     
+    // Validate username (max 24 chars, only letters, numbers, and underscores)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,24}$/;
+    if (!usernameRegex.test(formData.username)) {
+      setError('Username must be 3-24 characters and can only contain letters, numbers, and underscores');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setSuccess(null);
@@ -79,7 +86,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess }) => {
           onChange={handleChange}
           required
           placeholder="Choose a username"
+          pattern="[a-zA-Z0-9_]{3,24}"
+          title="Username must be 3-24 characters and can only contain letters, numbers, and underscores"
+          maxLength={24}
         />
+        <small className="form-text">3-24 characters, letters, numbers and underscores only.</small>
       </div>
       
       <div className="form-group">

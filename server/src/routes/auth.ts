@@ -6,6 +6,7 @@ import { createUser, getUserByEmail, saveApiKey, getApiKeyByUserId, updateApiKey
 import { sendVerificationEmail } from '../utils/email';
 import crypto from 'crypto';
 import passport from 'passport';
+import { validateRegistration } from '../middleware/validation';
 
 // Extend the Express.Request interface to include our user type
 declare global {
@@ -23,7 +24,9 @@ const router: Router = express.Router();
 // @route   POST api/auth/register
 // @desc    Register a user
 // @access  Public
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', 
+  validateRegistration as any, // Type assertion to resolve TypeScript error
+  async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
     

@@ -1,6 +1,14 @@
 import OpenAI from 'openai';
 import { getOpenAIClient } from './openai';
 
+// Interface for OpenAI API error response
+interface OpenAIError extends Error {
+  response?: {
+    status: number;
+    data?: any;
+  };
+}
+
 // In-memory cache for embeddings
 // Structure: { bookId: { chunks: string[], embeddings: number[][] } }
 type EmbeddingsCache = Record<number, {
@@ -128,21 +136,39 @@ export function getEmbeddingsCacheInfo(bookId: number): { chunkCount: number } |
 }
 
 /**
- * Split text into overlapping chunks of a specified size
+ * Split text into overlapping chunks optimized for semantic understanding
  */
-export function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): string[] {
+export function chunkText(text: string, chunkSize: number = 2000, overlap: number = 400): string[] {
   if (!text) return [];
   
   const chunks: string[] = [];
   let startIndex = 0;
   
   while (startIndex < text.length) {
-    // Calculate end index, ensuring we don't go beyond text length
-    const endIndex = Math.min(startIndex + chunkSize, text.length);
+    // Find the end of the current chunk
+    let endIndex = Math.min(startIndex + chunkSize, text.length);
+    
+    // If we're not at the end of the text, try to find a better break point
+    if (endIndex < text.length) {
+      // Look for the last period, question mark, or exclamation mark followed by a space
+      const lastSentenceBreak = text.slice(startIndex, endIndex + 100)
+        .split(/(?<=[.!?])\s+/)
+        .slice(0, -1)
+        .join(' ')
+        .length;
+      
+      if (lastSentenceBreak > 0) {
+        endIndex = startIndex + lastSentenceBreak;
+      }
+    }
     
     // Extract chunk
-    const chunk = text.substring(startIndex, endIndex);
-    chunks.push(chunk);
+    const chunk = text.substring(startIndex, endIndex).trim();
+    
+    // Only add non-empty chunks
+    if (chunk) {
+      chunks.push(chunk);
+    }
     
     // Move start index forward, accounting for overlap
     startIndex = endIndex - overlap;
@@ -150,6 +176,10 @@ export function chunkText(text: string, chunkSize: number = 1000, overlap: numbe
     // If we're near the end and the remaining text is smaller than the overlap,
     // just include it in the last chunk and break
     if (startIndex + overlap >= text.length) {
+      const finalChunk = text.substring(startIndex).trim();
+      if (finalChunk && finalChunk !== chunks[chunks.length - 1]) {
+        chunks.push(finalChunk);
+      }
       break;
     }
   }
@@ -169,44 +199,77 @@ export async function generateEmbeddings(
   const embeddings: number[][] = [];
   
   // Process chunks in batches to avoid rate limits
-  const batchSize = 20; // Adjust based on API limits
+  const batchSize = 10; // Reduced batch size for larger chunks
+  let lastProcessedChunk = 0;
+  
+  // Pre-calculate word and token counts
+  let wordCount = 0;
+  let tokenCount = 0;
+  if (bookId && embeddingsCache[bookId]) {
+    wordCount = embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId);
+    tokenCount = embeddingsCache[bookId].progress?.exactTokenCount || Math.round(wordCount * 0.75);
+  }
   
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batchChunks = chunks.slice(i, i + batchSize);
     console.log(`Generating embeddings for batch ${i/batchSize + 1} of ${Math.ceil(chunks.length/batchSize)}`);
     
-    // Create embeddings for this batch
-    const batchPromises = batchChunks.map(async (chunk, index) => {
-      const response = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: chunk,
-        dimensions: 1536 // Standard for this model
-      });
-      
-      // Update progress if bookId is provided
-      if (bookId && embeddingsCache[bookId]) {
-        const processedChunks = i + index + 1;
-        embeddingsCache[bookId].progress = {
-          processedChunks,
-          totalChunks: chunks.length
-        };
+    // Process batch sequentially to maintain order
+    for (let j = 0; j < batchChunks.length; j++) {
+      try {
+        // Add contextual markers to help the model understand chunk boundaries
+        const chunkWithContext = `[START] ${batchChunks[j]} [END]`;
         
-        // Emit progress event
-        embeddingsProgressEmitter.emit('progress', {
-          bookId,
-          processedChunks: processedChunks,
-          totalChunks: chunks.length,
-          exactWordCount: embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId),
-          exactTokenCount: embeddingsCache[bookId].progress?.exactTokenCount || Math.round((embeddingsCache[bookId].progress?.exactWordCount || calculateWordCount(bookId)) * 0.75)
+        const response = await openai.embeddings.create({
+          model: "text-embedding-3-large", // Use the more powerful model
+          input: chunkWithContext,
+          dimensions: 3072 // Maximum available dimensions for better semantic representation
         });
+        
+        embeddings.push(response.data[0].embedding);
+        
+        // Update progress if bookId is provided
+        if (bookId && embeddingsCache[bookId]) {
+          const processedChunks = i + j + 1;
+          
+          // Only update if we're moving forward
+          if (processedChunks > lastProcessedChunk) {
+            lastProcessedChunk = processedChunks;
+            
+            // Create a new progress object to avoid mutation
+            const newProgress = {
+              processedChunks,
+              totalChunks: chunks.length,
+              exactWordCount: wordCount,
+              exactTokenCount: tokenCount
+            };
+            
+            // Atomic update of the progress object
+            embeddingsCache[bookId].progress = newProgress;
+            
+            // Emit progress event with the new progress object
+            embeddingsProgressEmitter.emit('progress', {
+              bookId,
+              ...newProgress
+            });
+            
+            console.log(`Progress updated for book ${bookId}: ${processedChunks}/${chunks.length} chunks`);
+          }
+        }
+      } catch (error) {
+        const apiError = error as OpenAIError;
+        console.error(`Error processing chunk ${i + j + 1}/${chunks.length}:`, apiError);
+        if (apiError.response?.status === 429) {
+          // Rate limit hit - wait for a bit and retry
+          console.log('Rate limit hit, waiting 20 seconds before retrying...');
+          await new Promise(resolve => setTimeout(resolve, 20000));
+          j--; // Retry this chunk
+          continue;
+        }
+        // For other errors, continue with next chunk
+        continue;
       }
-      
-      return response.data[0].embedding;
-    });
-    
-    // Wait for all embeddings in this batch
-    const batchResults = await Promise.all(batchPromises);
-    embeddings.push(...batchResults);
+    }
   }
   
   return embeddings;
