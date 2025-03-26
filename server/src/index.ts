@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 // Proper CORS configuration for credentials
 app.use(cors({
-  origin: ['https://abaj.cloud', 'https://api.abaj.cloud'],
+  origin: ['https://bots.abaj.ai', 'https://api.bots.abaj.ai'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

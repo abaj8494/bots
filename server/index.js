@@ -9,7 +9,7 @@ app.use(express.json());
 
 // Proper CORS configuration for credentials
 app.use(cors({
-  origin: ['https://abaj.cloud', 'https://api.abaj.cloud'], // Allow both domains
+  origin: ['https://bots.abaj.ai', 'https://api.bots.abaj.ai'], // Allow both domains
   credentials: true,  // Allow credentials
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

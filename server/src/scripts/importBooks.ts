@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Base URL for serving static files
-const SERVER_URL = process.env.SERVER_URL || 'https://api.abaj.cloud';
+const SERVER_URL = process.env.SERVER_URL || 'https://api.bots.abaj.ai';
 
 // Book metadata
 const bookMetadata: Record<string, { author: string, description: string }> = {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Add API_URL export at the top of the file
-export const API_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud';
+export const API_URL = process.env.REACT_APP_API_URL || 'https://api.bots.abaj.ai';
 
 // Set up axios instance
 const api = axios.create({

@@ -226,45 +226,58 @@ router.get(
 );
 
 // GitHub OAuth routes
-router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+const githubEnabled = !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
 
-router.get(
-  '/github/callback',
-  passport.authenticate('github', { session: false }),
-  (req: Request, res: Response) => {
-    // Create JWT token
-    if (!req.user) {
-      console.error('GitHub auth failed: No user data received');
-      res.status(401).json({ msg: 'Authentication failed' });
-      return;
-    }
-    
-    const payload = {
-      id: req.user.id,
-      username: req.user.username,
-      email: req.user.email
-    };
-    
-    console.log('GitHub auth successful, user:', req.user.email);
-    
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' },
-      (err, token) => {
-        if (err) {
-          console.error('JWT signing error:', err);
-          res.status(500).send('Error during authentication');
-          return;
-        }
-        
-        const redirectUrl = `${process.env.CLIENT_URL}?token=${token}`;
-        console.log('Redirecting to:', redirectUrl);
-        res.redirect(redirectUrl);
+if (githubEnabled) {
+  router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+  router.get(
+    '/github/callback',
+    passport.authenticate('github', { session: false }),
+    (req: Request, res: Response) => {
+      // Create JWT token
+      if (!req.user) {
+        console.error('GitHub auth failed: No user data received');
+        res.status(401).json({ msg: 'Authentication failed' });
+        return;
       }
-    );
-  }
-);
+      
+      const payload = {
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email
+      };
+      
+      console.log('GitHub auth successful, user:', req.user.email);
+      
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET as string,
+        { expiresIn: '7d' },
+        (err, token) => {
+          if (err) {
+            console.error('JWT signing error:', err);
+            res.status(500).send('Error during authentication');
+            return;
+          }
+          
+          const redirectUrl = `${process.env.CLIENT_URL}?token=${token}`;
+          console.log('Redirecting to:', redirectUrl);
+          res.redirect(redirectUrl);
+        }
+      );
+    }
+  );
+} else {
+  // Add fallback routes for disabled GitHub auth
+  router.get('/github', (req: Request, res: Response) => {
+    res.status(501).json({ msg: 'GitHub authentication is not configured' });
+  });
+  
+  router.get('/github/callback', (req: Request, res: Response) => {
+    res.status(501).json({ msg: 'GitHub authentication is not configured' });
+  });
+}
 
 // @route   POST api/auth/apikey
 // @desc    Save or update user's OpenAI API key

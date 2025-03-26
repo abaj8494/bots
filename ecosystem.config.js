@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: "bookbot-api",
-    cwd: "/var/www/cloud/server",
+    cwd: "/var/www/bots/server",
     script: "dist/index.js",
     instances: 1,
     autorestart: true,

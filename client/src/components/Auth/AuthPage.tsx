@@ -8,7 +8,7 @@ import CursorIcon from './icons/CursorIcon';
 import ClaudeIcon from './icons/ClaudeIcon';
 
 // Use environment variable if available, otherwise default to production URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.abaj.cloud';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.bots.abaj.ai';
 
 const AuthPage: React.FC<{ onAuthSuccess: () => void }> = ({ onAuthSuccess }) => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');

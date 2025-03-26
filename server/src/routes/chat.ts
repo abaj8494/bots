@@ -24,7 +24,7 @@ router.get('/progress/:bookId', auth, (req: Request, res: Response) => {
   }
   
   // CORS headers for EventSource connections
-  res.setHeader('Access-Control-Allow-Origin', 'https://abaj.cloud');
+  res.setHeader('Access-Control-Allow-Origin', 'https://bots.abaj.ai');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   // Set headers for SSE
