@@ -6,10 +6,20 @@
   padding: 20px;
 }
 
+/* Controls Container */
+.controls-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
 /* Search Bar Styles */
 .search-container {
   position: relative;
-  margin-bottom: 20px;
+  flex: 1;
+  min-width: 300px;
 }
 
 .search-input {
@@ -83,6 +93,39 @@
 
 .clear-filter-btn:hover {
   background-color: #3a5ce5;
+}
+
+/* Sort Controls */
+.sort-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.sort-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.sort-select {
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.sort-select:focus {
+  border-color: #4a6cf7;
+}
+
+.sort-select:hover {
+  border-color: #ccc;
 }
 
 .book-grid {

@@ -77,3 +77,39 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* BookBot Icon Styles */
+.bookbot-icon-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: white;
+  border: 2px solid #4a6cf7;
+  border-radius: 50%;
+  padding: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bookbot-icon-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(74, 108, 247, 0.3);
+  border-color: #3a5ce5;
+}
+
+.bookbot-icon-button:active {
+  transform: scale(0.95);
+}
+
+.bookbot-icon-image {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}

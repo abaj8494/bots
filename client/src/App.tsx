@@ -5,6 +5,7 @@ import ChatInterface from './components/ChatInterface';
 import BookGrid from './components/BookGrid';
 import AuthPage from './components/Auth/AuthPage';
 import LoadingCircle from './components/LoadingCircle';
+import BookBotIcon from './components/BookBotIcon';
 import { useAuth } from './context/AuthContext';
 import SubscriptionPage from './pages/SubscriptionPage';
 
@@ -41,6 +42,7 @@ function App() {
           <AuthPage onAuthSuccess={handleAuthSuccess} />
         ) : (
           <>
+            <BookBotIcon />
             <header className="App-header">
               <h1>Bajaj's BookBot</h1>
               <p>Preload Public Domain Books into an LLM Context Window!</p>
