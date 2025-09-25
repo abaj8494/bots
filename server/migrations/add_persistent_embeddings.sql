@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS book_embeddings (
   book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
   chunk_index INTEGER NOT NULL,
   chunk_text TEXT NOT NULL,
-  embedding VECTOR(1536) NOT NULL,
+  embedding JSONB NOT NULL, -- Using JSONB instead of VECTOR for compatibility
   word_count INTEGER DEFAULT 0,
   token_count INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

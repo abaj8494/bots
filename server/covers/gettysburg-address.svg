@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a6cf7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3a5ce5;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="300" fill="url(#grad)"/>
+  <rect x="10" y="10" width="180" height="280" fill="none" stroke="white" stroke-width="2"/>
+  <text x="100" y="50" font-family="serif" font-size="16" font-weight="bold" fill="white" text-anchor="middle">
+    <tspan x="100" dy="0">The Gettysburg Addre...</tspan>
+  </text>
+  <text x="100" y="250" font-family="serif" font-size="12" fill="white" text-anchor="middle">
+    <tspan x="100" dy="0">Abraham Lincoln</tspan>
+  </text>
+</svg>
