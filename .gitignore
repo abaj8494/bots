@@ -13,6 +13,8 @@ node_modules/
 # Build artifacts
 /client/build
 /server/dist
+/public/static/
+public/static/
 
 # Logs
 npm-debug.log*
