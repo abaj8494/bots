@@ -18,6 +18,7 @@ const BookGrid: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [filteredByAuthor, setFilteredByAuthor] = useState<string | null>(authorName || null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   
   const navigate = useNavigate();
 
@@ -63,10 +64,22 @@ const BookGrid: React.FC = () => {
     }
   };
 
-  // Get books to display based on author filter
-  const displayedBooks = filteredByAuthor 
-    ? books.filter(book => book.author === filteredByAuthor) 
-    : books;
+  // Get books to display based on author filter and search query
+  const displayedBooks = books.filter(book => {
+    // First apply author filter if active
+    if (filteredByAuthor && book.author !== filteredByAuthor) {
+      return false;
+    }
+    
+    // Then apply search filter if query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return book.title.toLowerCase().includes(query) || 
+             book.author.toLowerCase().includes(query);
+    }
+    
+    return true;
+  });
 
   if (loading) {
     return <div className="loading-message">Loading books...</div>;
@@ -78,6 +91,26 @@ const BookGrid: React.FC = () => {
 
   return (
     <div className="book-grid-container">
+      {/* Search Bar */}
+      <div className="search-container">
+        <input
+          type="text"
+          placeholder="Search books by title or author..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="search-input"
+        />
+        {searchQuery && (
+          <button 
+            onClick={() => setSearchQuery('')} 
+            className="clear-search-btn"
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
       {filteredByAuthor && (
         <div className="author-filter-header">
           <h2>Books by {filteredByAuthor}</h2>
@@ -90,9 +123,11 @@ const BookGrid: React.FC = () => {
       <div className="book-grid">
         {displayedBooks.length === 0 ? (
           <div className="no-books-message">
-            {filteredByAuthor 
-              ? `No books found by ${filteredByAuthor}` 
-              : 'No books available. Please check back later.'}
+            {searchQuery 
+              ? `No books found matching "${searchQuery}"${filteredByAuthor ? ` by ${filteredByAuthor}` : ''}`
+              : filteredByAuthor 
+                ? `No books found by ${filteredByAuthor}` 
+                : 'No books available. Please check back later.'}
           </div>
         ) : (
           displayedBooks.map(book => (

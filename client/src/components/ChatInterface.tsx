@@ -386,7 +386,17 @@ const ChatInterface: React.FC = () => {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>Chat with Aayush's BookBot</h2>
+        <div className="header-left">
+          <button 
+            onClick={() => navigate('/')} 
+            className="home-button"
+            aria-label="Go to home"
+            title="Back to Books"
+          >
+            🏠
+          </button>
+          <h2>Chat with Aayush's BookBot</h2>
+        </div>
         <select 
           value={selectedBook?.id || ''} 
           onChange={handleBookChange}
