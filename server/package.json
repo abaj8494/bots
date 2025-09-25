@@ -10,7 +10,9 @@
     "setup-and-start": "ts-node src/scripts/setupAndStart.ts",
     "setup-database": "ts-node src/scripts/setupDatabase.ts",
     "setup-verification": "ts-node src/scripts/setupVerification.ts",
-    "create-default-user": "ts-node src/scripts/createDefaultUser.ts"
+    "create-default-user": "ts-node src/scripts/createDefaultUser.ts",
+    "setup-storage": "ts-node scripts/setupBlockStorage.ts",
+    "migrate": "psql $DATABASE_URL -f migrations/add_persistent_embeddings.sql"
   },
   "keywords": [],
   "author": "",

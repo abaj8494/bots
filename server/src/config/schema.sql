@@ -43,6 +43,37 @@ CREATE TABLE chat_messages (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create embeddings table for persistent storage
+CREATE TABLE book_embeddings (
+  id SERIAL PRIMARY KEY,
+  book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
+  chunk_index INTEGER NOT NULL,
+  chunk_text TEXT NOT NULL,
+  embedding VECTOR(1536) NOT NULL,
+  word_count INTEGER DEFAULT 0,
+  token_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(book_id, chunk_index)
+);
+
+-- Create index for faster similarity searches
+CREATE INDEX idx_book_embeddings_book_id ON book_embeddings(book_id);
+CREATE INDEX idx_book_embeddings_embedding ON book_embeddings USING ivfflat (embedding vector_cosine_ops);
+
+-- Create book_processing_status table to track embedding generation
+CREATE TABLE book_processing_status (
+  book_id INTEGER PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+  status VARCHAR(20) DEFAULT 'pending', -- pending, processing, completed, error
+  total_chunks INTEGER DEFAULT 0,
+  processed_chunks INTEGER DEFAULT 0,
+  word_count INTEGER DEFAULT 0,
+  token_count INTEGER DEFAULT 0,
+  error_message TEXT,
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert sample books
 INSERT INTO books (title, author, description, content, cover_image) VALUES
 ('1984', 'George Orwell', 'A dystopian novel set in a totalitarian society', 'Sample content for 1984...', 'https://example.com/1984.jpg'),

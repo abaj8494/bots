@@ -11,6 +11,7 @@ import booksRoutes from './routes/books';
 import chatRoutes from './routes/chat';
 import embeddingRoutes from './routes/embedding';
 import subscriptionRoutes from './routes/subscription';
+import healthRoutes from './routes/health';
 import { handleStripeWebhook } from './routes/webhooks';
 
 // Load environment variables
@@ -46,6 +47,7 @@ app.use('/api/books', booksRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/embeddings', embeddingRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/health', healthRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

@@ -2,11 +2,11 @@ import OpenAI from 'openai';
 import { getApiKeyByUserId } from '../models/User';
 import { ChatCompletionMessageParam } from 'openai/resources';
 import { 
-  processBookContent, 
-  findRelevantChunks,
-  checkEmbeddingsExist,
-  ensureEmbeddingsReady
-} from './embeddings';
+  processBookContentPersistent, 
+  findRelevantChunksPersistent, 
+  checkEmbeddingsExist as checkPersistentEmbeddingsExist,
+  getProcessingStatus
+} from './persistentEmbeddings';
 
 // Simple in-memory cache for responses
 interface CacheEntry {
@@ -115,13 +115,13 @@ export const generateChatResponse = async (
     if (bookId) {
       try {
         // Check if embeddings exist without waiting for processing
-        const embeddingsExist = await checkEmbeddingsExist(bookId);
+        const embeddingsExist = await checkPersistentEmbeddingsExist(bookId);
         
         if (!embeddingsExist) {
           console.log(`First-time processing for book ${bookId}. Starting embeddings generation...`);
           
           // Start embeddings generation in the background (don't await)
-          processBookContent(bookId, bookContent, userId)
+          processBookContentPersistent(bookId, bookContent, userId)
             .then(() => console.log(`Background embeddings generation complete for book ${bookId}`))
             .catch(err => console.error(`Background embeddings generation failed for book ${bookId}:`, err));
           
@@ -131,7 +131,6 @@ export const generateChatResponse = async (
         
         // Normal flow - embeddings already exist
         console.log(`Embeddings already exist for book ${bookId}, proceeding with query`);
-        await ensureEmbeddingsReady(bookId);
       } catch (error) {
         console.error('Error checking or preparing embeddings:', error);
         // Continue with fallback approach
@@ -147,7 +146,7 @@ export const generateChatResponse = async (
         console.log('Finding relevant chunks using embeddings...');
         
         // Find the most relevant chunks for this question
-        const relevantChunks = await findRelevantChunks(bookId, message, userId, 5);
+        const relevantChunks = await findRelevantChunksPersistent(bookId, message, userId, 5);
         
         console.log(`Found ${relevantChunks.length} relevant chunks for the query`);
         
