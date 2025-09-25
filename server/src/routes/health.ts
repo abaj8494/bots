@@ -69,7 +69,22 @@ router.get('/', async (req: Request, res: Response) => {
 // @access  Public
 router.get('/detailed', async (req: Request, res: Response) => {
   try {
-    const detailedHealth = {
+    interface ServiceHealth {
+      status: 'healthy' | 'unhealthy' | 'unavailable';
+      details?: any;
+    }
+    
+    const detailedHealth: {
+      status: 'healthy' | 'degraded' | 'unhealthy';
+      timestamp: string;
+      version: string;
+      system: any;
+      services: {
+        database: ServiceHealth;
+        storage: ServiceHealth;
+        embeddings: ServiceHealth;
+      };
+    } = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       version: '2.0.0-optimized',
@@ -87,9 +102,9 @@ router.get('/detailed', async (req: Request, res: Response) => {
         cpu: process.cpuUsage()
       },
       services: {
-        database: { status: 'unknown', details: null },
-        storage: { status: 'unknown', details: null },
-        embeddings: { status: 'unknown', details: null }
+        database: { status: 'unhealthy' },
+        storage: { status: 'unhealthy' },
+        embeddings: { status: 'unhealthy' }
       }
     };
 
@@ -151,10 +166,16 @@ router.get('/detailed', async (req: Request, res: Response) => {
 
     // Determine overall status
     const isHealthy = Object.values(detailedHealth.services).every(
-      service => service.status !== 'unhealthy'
+      service => service.status === 'healthy'
     );
     
-    if (!isHealthy) {
+    const hasUnhealthy = Object.values(detailedHealth.services).some(
+      service => service.status === 'unhealthy'
+    );
+    
+    if (hasUnhealthy) {
+      detailedHealth.status = 'unhealthy';
+    } else if (!isHealthy) {
       detailedHealth.status = 'degraded';
     }
 
